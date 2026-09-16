@@ -16,10 +16,12 @@ from cascade_dedup.store import CONTAINER_TARGET, ChunkStore
 
 ALL_MODES = (
     "fastcdc",
+    "fastcdc-tmax",
+    "seqcdc",
+    "seqcdc-tmax",
+    "seqcdc-adapt",
     "radcdc-exact",
     "radcdc",
-    "seqcdc",
-    "seqcdc-adapt",
     "seqcdc-fused",
     "mux",
 )
@@ -99,11 +101,16 @@ def _cuts_for_mode(
 ) -> tuple[list[int], list[bytes] | None, EntropyMux | None, int]:
     if mode == "fastcdc":
         return FastCDC().cuts(data), None, None, 0
+    if mode == "fastcdc-tmax":
+        return FastCDC(tmax_rescue=True).cuts(data), None, None, 0
     if mode == "seqcdc":
         cdc = SeqCDC()
         return cdc.cuts(data), None, None, cdc.skip_count
+    if mode == "seqcdc-tmax":
+        cdc = SeqCDC(tmax_rescue=True)
+        return cdc.cuts(data), None, None, cdc.skip_count
     if mode == "seqcdc-adapt":
-        cdc = SeqCDC(adaptive_skip=True, tmax_rescue=True)
+        cdc = SeqCDC(adaptive_skip=True)
         return cdc.cuts(data), None, None, cdc.skip_count
     if mode == "seqcdc-fused":
         cdc = SeqCDC(fuse_fingerprint=True)

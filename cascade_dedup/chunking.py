@@ -3,6 +3,10 @@
 This follows the FastCDC normalized-chunking pattern (Xia et al., ATC 2016):
 Gear rolling hash, skip judgment until Tmin, use a harder mask until Tavg and
 a softer mask until Tmax.
+
+``tmax_rescue`` is a small extra: if that process would emit a hard Tmax chunk,
+cut instead at the easy-mask hit closest to Tavg. Cuts that already matched a
+mask are unchanged.
 """
 
 from __future__ import annotations
@@ -83,11 +87,15 @@ class CDCParams:
 class FastCDC:
     """Content-only Gear CDC with normalized masks."""
 
-    def __init__(self, params: CDCParams | None = None) -> None:
+    def __init__(self, params: CDCParams | None = None, *, tmax_rescue: bool = False) -> None:
         self.params = params or CDCParams()
+        self.tmax_rescue = tmax_rescue
         bits = mask_bits_for_avg(self.params.avg_size)
         self.mask_hard = (1 << bits) - 1
         self.mask_easy = (1 << max(bits - 1, 1)) - 1
+
+    def next_cut(self, data: bytes, start: int) -> int:
+        return self._scan(data, start, collect_backups=False)[0]
 
     def next_cut(self, data: bytes, start: int) -> int:
         return self._scan(data, start, collect_backups=False)[0]
@@ -138,12 +146,20 @@ class FastCDC:
         h = 0
         natural = max_end
         backups: list[int] = []
+        # Easy-mask hit closest to Tavg; used only if the chunk would be a hard Tmax.
+        rescue: int | None = None
+        rescue_dist = 10**9
         i = start
         while i < max_end:
             h = ((h << 1) & ((1 << 64) - 1)) + GEAR[data[i]]
             i += 1
             if i < min_end:
                 continue
+            if self.tmax_rescue and (h & self.mask_easy) == 0:
+                dist = abs(i - avg_end)
+                if dist < rescue_dist:
+                    rescue_dist = dist
+                    rescue = i
             mask = self.mask_hard if i < avg_end else self.mask_easy
             if (h & mask) == 0:
                 if natural == max_end:
@@ -153,5 +169,8 @@ class FastCDC:
                 elif collect_backups and len(backups) < backup_limit and i != natural:
                     backups.append(i)
         if natural == max_end:
-            natural = max_end
+            if self.tmax_rescue and rescue is not None:
+                natural = rescue
+            else:
+                natural = max_end
         return natural, backups

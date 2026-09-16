@@ -33,6 +33,23 @@ def test_chunks_reconstruct() -> None:
     assert b"".join(cdc.chunks(data)) == data
 
 
+def test_tmax_rescue_tiles_and_may_avoid_hard_max() -> None:
+    params = CDCParams(min_size=64, avg_size=128, max_size=256)
+    vanilla = FastCDC(params)
+    rescued = FastCDC(params, tmax_rescue=True)
+    data = bytes([255 - (i % 251) for i in range(20_000)])
+    assert b"".join(rescued.chunks(data)) == data
+    v_cuts = vanilla.cuts(data)
+    r_cuts = rescued.cuts(data)
+    # Rescue is allowed to differ, but every non-tail chunk must still be <= Tmax.
+    prev = 0
+    for end in r_cuts:
+        if end != len(data):
+            assert end - prev <= params.max_size
+        prev = end
+    assert r_cuts[-1] == v_cuts[-1] == len(data)
+
+
 def test_fingerprint_changes_with_bytes() -> None:
     assert fingerprint(b"aaaa") != fingerprint(b"aaab")
 

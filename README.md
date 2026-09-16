@@ -90,6 +90,16 @@ Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. D
 
 ---
 
-## AI use
+## Run the prototype
 
-Same integrity rules as before: architecture and claims are yours; numbers come from real runs; cite Fu et al. 2025 and the CDC/delta papers you compare against.
+This is a **FastCDC improvement**, not a new algorithm family: keep content-only cuts when the natural chunk is already stored (exact-stability); otherwise consider a few nearby cuts using exact hits and sketch similarity.
+
+```bash
+python3 -m pip install -e ".[dev]"
+python3 -m pytest
+python3 -m cascade_dedup bench --versions 6 --base-size 524288
+```
+
+`bench` prints FastCDC vs RAD-CDC on a synthetic backup timeline (mutations, inserts, boundary noise). A loss for RAD-CDC is an allowed result.
+
+Algorithm notes: [docs/rad-cdc.md](docs/rad-cdc.md).

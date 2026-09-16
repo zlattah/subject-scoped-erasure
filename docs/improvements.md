@@ -37,75 +37,36 @@ by a better cut rule.
 
 ## Results
 
-`python3 -m pytest`: **23 passed**.
+`python3 -m pytest`: **24 passed**.
 
-Corpus: 6 versions, 3.03 MiB logical. Predictor always trained on seed 101 of the
-same profile. Negative results are allowed; **none of the leftover knobs beat
-FastCDC on exact-dedup or post-delta ratio**.
+The bar is a **small tweak to FastCDC or SeqCDC**, not a new algorithm.
 
-### Mixed profile, seed 0 (encode-then-filter)
+Ablation (same 3.03 MiB timelines, encode-then-filter): **adaptive SkipSize does not change cuts** on these files. The SeqCDC knob that moved ratio is **Tmax rescue**. FastCDC Tmax rescue (easy-mask hit closest to Tavg, only if Gear would emit Tmax) is almost a no-op here.
 
-Predictor (train seed 101): OLS n=115, n_neg=16, threshold=0.355.
+### Tmax rescue vs the published method
 
-| mode | dedup | with delta | encodes (kept) | predict skip | seq skips | avg chunk | chunk MB/s |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| fastcdc | **1.236** | **5.594** | 124 (99) | 0 | 0 | 13294 | 9.62 |
-| radcdc-exact | 1.236 | 5.594 | 124 (99) | 0 | 0 | 13294 | 1.85 |
-| radcdc | 1.173 | 4.480 | 105 (77) | 0 | 0 | 16548 | 2.20 |
-| seqcdc | 1.145 | 4.324 | 96 (67) | 0 | 1255 | 17362 | **12.65** |
-| seqcdc-adapt | 1.145 | 4.651 | 106 (80) | 0 | 428 | 15275 | 9.52 |
-| seqcdc-fused | 1.145 | 4.324 | 96 (67) | 0 | 1255 | 17362 | 11.22 |
-| mux | 1.161 | 4.490 | 96 (70) | 0 | 1115 | 16900 | 9.90 |
+| corpus | tweak | exact | after delta | chunk MB/s |
+|---|---|---:|---:|---:|
+| mixed seed 0 | FastCDC | 1.236 | 5.594 | 9.20 |
+| mixed seed 0 | FastCDC + Tmax rescue | 1.236 | 5.594 | 7.83 |
+| mixed seed 0 | SeqCDC | 1.145 | 4.324 | 12.66 |
+| mixed seed 0 | SeqCDC + Tmax rescue | **1.150** | **4.648** | 9.48 |
+| mixed seed 11 | FastCDC | 1.205 | 4.673 | 9.17 |
+| mixed seed 11 | FastCDC + Tmax rescue | 1.205 | 4.674 | 7.57 |
+| mixed seed 11 | SeqCDC | 1.177 | 4.599 | 12.56 |
+| mixed seed 11 | SeqCDC + Tmax rescue | **1.203** | 4.569 | 9.84 |
+| random seed 0 | FastCDC | 1.742 | 4.795 | 9.55 |
+| random seed 0 | FastCDC + Tmax rescue | 1.744 | 4.795 | 8.11 |
+| random seed 0 | SeqCDC / +Tmax | 1.608 / 1.608 | 4.114 / 4.114 | 12.78 / 12.44 |
 
-Mux split: 17 FastCDC cuts / 171 SeqCDC cuts.
+**SeqCDC Tmax rescue** is the only leftover knob that consistently acts like a small published-method tweak: on mixed data it adds a bit of SeqCDC space savings (seed 0 post-delta **+7.5% relative**; seed 11 exact **+2.2% relative**, almost FastCDC’s 1.205). Cost: ~25% slower chunking in this Python loop. On uniform random data it does nothing. It does **not** overtake FastCDC.
 
-### Mixed profile, seed 11 (encode-then-filter)
+**FastCDC Tmax rescue** does not help FastCDC on these files (FastCDC rarely dies at Tmax / the rescue cut matches the old one) and it slows the scan.
 
-| mode | dedup | with delta | encodes (kept) | seq skips | avg chunk | chunk MB/s |
-|---|---:|---:|---:|---:|---:|---:|
-| fastcdc | **1.205** | **4.673** | 101 (84) | 0 | 15729 | 9.60 |
-| radcdc | 1.185 | 4.491 | 93 (74) | 0 | 17268 | 2.37 |
-| seqcdc | 1.177 | 4.599 | 111 (86) | 884 | 15651 | **12.54** |
-| seqcdc-adapt | 1.203 | 4.569 | 112 (87) | 279 | 14248 | 9.83 |
-| mux | 1.159 | 4.339 | 107 (82) | 857 | 15966 | 9.70 |
+**Adaptive skip** vs SeqCDC: mixed seed 0 exact 1.145 → 1.140 (slightly worse); other seeds identical.
 
-Mux split: 16 FastCDC / 183 SeqCDC. Adaptive skip almost matches FastCDC exact
-(1.203 vs 1.205) and beats SeqCDC exact; it still loses the delta column.
+### Other knobs (unchanged conclusion)
 
-### Predict vs encode-then-filter (mixed, seed 0)
+Mux, fused fingerprint, RAD similar-migrate, and the encode-free predictor still do not give a small, reliable lift. Predictor: fewer zlib encodes, worse stored bytes.
 
-| mode | encodes | skipped | with delta (encode) | with delta (predict) |
-|---|---:|---:|---:|---:|
-| fastcdc | 124 → 92 | 32 | **5.594** | 4.854 |
-| seqcdc | 96 → 73 | 23 | 4.324 | 4.005 |
-
-The predictor does cut zlib-dict work. It also skips pairs encode-then-filter
-would have kept, so stored bytes get worse.
-
-### Random profile, seed 0 (the original RAD-CDC corpus)
-
-FastCDC exact **1.742** / delta 4.795 matches the earlier RAD-CDC writeup.
-`radcdc` is still worse (1.684 / 4.743). SeqLength=6 SeqCDC is size-matched
-(avg 8105 vs FastCDC 8023) and **loses** on both ratios (1.608 / 4.114). Skip
-never fires (`seq_skips=0`), so adaptive skip is a no-op. Mux classifies every
-cut as SeqCDC. The predictor finds only 2 negative train examples and skips 4
-FastCDC encodes; delta ratio 4.754 vs 4.795.
-
-### What actually improved
-
-- **SeqCDC chunk-only throughput** vs FastCDC (~12.6 vs ~9.6 MB/s in this Python
-  loop). Ratio does not follow.
-- **Adaptive skip vs SeqCDC** on mixed seed 11: exact 1.177 → 1.203. On mixed
-  seed 0: post-delta 4.324 → 4.651. Both still behind FastCDC. Throughput **drops**
-  vs fixed-skip SeqCDC (entropy + Tmax rescue).
-- **Fused fingerprint**: bit-identical cuts and blake2s vs SeqCDC; **slower**
-  chunk_MB_s in Python (11.2 vs 12.6).
-- **Mux**: does switch on mixed data; lands *between* FastCDC and SeqCDC; does
-  not beat FastCDC.
-- **Predictor**: fewer `delta_encodes`, worse `ratio_with_delta`. Encode-then-filter
-  remains the better byte policy on these files.
-- **RAD-CDC similar migrate**: still hurts vs FastCDC on both profiles.
-
-Laptop-scale synthetic timelines only. A C inner loop could still change the
-throughput column for fused fingerprint and adaptive skip; it would not change
-the ratio column.
+Laptop-scale synthetic timelines only. A C inner loop could still change the throughput column; it would not change which tweak moved ratio.

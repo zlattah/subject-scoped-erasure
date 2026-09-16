@@ -102,9 +102,9 @@ python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11
 python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profile random
 ```
 
-`bench` compares FastCDC, RAD-CDC (`exact` / `similar` migrate), SeqCDC, adaptive-skip SeqCDC, fused-fingerprint SeqCDC, and the entropy mux. Default `--profile mixed` is a structured+random timeline so skip/mux/predict can fire; `--profile random` is the original uniform-byte corpus. Each mode is run with zlib-dict **encode-then-filter** and with the **encode-free predictor** (trained on `--train-seed`, default 101).
+`bench` compares FastCDC, FastCDC Tmax-rescue, SeqCDC, SeqCDC Tmax-rescue, adaptive-skip SeqCDC, fused-fingerprint SeqCDC, the entropy mux, and RAD-CDC. Default `--profile mixed` is a structured+random timeline; `--profile random` is the original uniform-byte corpus.
 
-On the original 3 MiB **random** timeline (seed 0), similarity-driven RAD migration hurt exact-dedup (1.684 vs FastCDC 1.742). `radcdc-exact` matched FastCDC. SeqCDC with matched ~8 KiB chunks also lost (1.608). On the **mixed** timeline, FastCDC still won both exact and post-delta ratio; adaptive SeqCDC skip helped SeqCDC a little and never caught FastCDC. A loss is an allowed result.
+On these files the only leftover knob that acts like a **small published-method tweak** is SeqCDC Tmax rescue (weaker cut only when SeqCDC would emit Tmax): mixed seed 0 post-delta 4.324 → 4.648; mixed seed 11 exact 1.177 → 1.203. It costs chunking speed and does not overtake FastCDC. Adaptive skip and FastCDC Tmax rescue do not help. A loss is an allowed result.
 
 - Cut migration: [docs/rad-cdc.md](docs/rad-cdc.md)
 - Leftover knobs and measurements: [docs/improvements.md](docs/improvements.md)

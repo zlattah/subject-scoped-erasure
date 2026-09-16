@@ -38,6 +38,26 @@ def sketch(data: bytes, k: int = 4) -> tuple[int, ...]:
     return tuple(features)
 
 
+def finesse_sketch(data: bytes, n_sub: int = 4) -> tuple[int, ...]:
+    """Finesse-style features: max Gear hash in each of n_sub equal subchunks."""
+    if not data:
+        return (0,) * n_sub
+    n = len(data)
+    sub = max(n // n_sub, 1)
+    features: list[int] = []
+    for i in range(n_sub):
+        a = i * sub
+        b = n if i == n_sub - 1 else min(n, (i + 1) * sub)
+        h = 0
+        best = 0
+        for j in range(a, b):
+            h = ((h << 1) & ((1 << 64) - 1)) + GEAR[data[j]]
+            if h > best:
+                best = h
+        features.append(best)
+    return tuple(features)
+
+
 def sketch_similarity(a: tuple[int, ...], b: tuple[int, ...]) -> float:
     if not a:
         return 0.0

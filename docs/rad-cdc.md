@@ -293,3 +293,5 @@ That is the difference between a toy and a serious algorithm.
 ## Honest novelty claim
 
 Fu et al. still ask for adaptive partitioning, but **restore-aware delta and multi-base delta are already implemented** (LoopDelta, SuperDelta). RAD-CDC is only interesting if moving the cut beats applying those methods *after* FastCDC. Cite RapidCDC, Palantir, and LoopDelta as the papers a reviewer will say you combined.
+
+Separate leftover knobs (SeqCDC adaptive skip, fused fingerprint, entropy mux, encode-free gain predictor) are measured in [improvements.md](improvements.md). They are not RAD-CDC.

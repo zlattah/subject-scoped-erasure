@@ -1,4 +1,4 @@
-"""In-memory chunk store: exact index, sketches, and 4 MiB containers."""
+"""In-memory chunk store: exact index, sketches, and 256 KiB containers."""
 
 from __future__ import annotations
 
@@ -63,8 +63,8 @@ class ChunkStore:
         scored.sort(reverse=True)
         return [length for _, length in scored[:limit]]
 
-    def put_unique(self, data: bytes) -> StoredChunk:
-        fp = fingerprint(data)
+    def put_unique(self, data: bytes, *, fp: bytes | None = None) -> StoredChunk:
+        fp = fp or fingerprint(data)
         existing = self.exact.get(fp)
         if existing is not None:
             return existing

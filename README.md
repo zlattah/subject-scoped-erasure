@@ -92,14 +92,18 @@ Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. D
 
 ## Run the prototype
 
-This is a **FastCDC improvement**, not a new algorithm family: keep content-only cuts when the natural chunk is already stored (exact-stability); otherwise consider a few nearby cuts using exact hits and sketch similarity.
+CDC cuts stay content-only except in RAD-CDC. SeqCDC, adaptive skip, fused fingerprinting, the entropy mux, and the encode-free delta-gain predictor are leftover **knobs**, not a new algorithm family. See [docs/improvements.md](docs/improvements.md).
 
 ```bash
 python3 -m pip install -e ".[dev]"
 python3 -m pytest
-python3 -m cascade_dedup bench --versions 6 --base-size 524288
+python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0
+python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11
 ```
 
-`bench` prints FastCDC vs `radcdc-exact` (only migrate on an exact store hit) vs `radcdc` (also migrate toward similar chunks). On a 3 MiB synthetic timeline, similarity migration sometimes helps a little (seed 11) and sometimes hurts exact-dedup (seed 0). Exact-only matched FastCDC on those runs. A loss is an allowed result.
+`bench` compares FastCDC, RAD-CDC (`exact` / `similar` migrate), SeqCDC, adaptive-skip SeqCDC, fused-fingerprint SeqCDC, and the entropy mux. Each mode is run with zlib-dict **encode-then-filter** and with the **encode-free predictor** (trained on `--train-seed`, default 101).
 
-Algorithm notes: [docs/rad-cdc.md](docs/rad-cdc.md).
+On the original 3 MiB timeline, similarity-driven RAD migration sometimes helped a little (seed 11) and sometimes hurt exact-dedup (seed 0). `radcdc-exact` matched FastCDC. A loss is an allowed result.
+
+- Cut migration: [docs/rad-cdc.md](docs/rad-cdc.md)
+- Leftover knobs and measurements: [docs/improvements.md](docs/improvements.md)

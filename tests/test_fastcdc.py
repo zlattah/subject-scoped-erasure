@@ -1,4 +1,4 @@
-from cascade_dedup.chunking import CDCParams, FastCDC, fingerprint
+from cascade_dedup.chunking import CDCParams, FastCDC, fingerprint, finesse_sketch
 
 
 def test_fastcdc_respects_min_max() -> None:
@@ -35,3 +35,9 @@ def test_chunks_reconstruct() -> None:
 
 def test_fingerprint_changes_with_bytes() -> None:
     assert fingerprint(b"aaaa") != fingerprint(b"aaab")
+
+
+def test_finesse_sketch_length() -> None:
+    sk = finesse_sketch(b"xyz" * 1000, n_sub=4)
+    assert len(sk) == 4
+    assert finesse_sketch(b"") == (0, 0, 0, 0)

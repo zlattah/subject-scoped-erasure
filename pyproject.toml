@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cascade-dedup"
 version = "0.1.0"
-description = "FastCDC plus RAD-CDC cut-migration prototype"
+description = "FastCDC/SeqCDC prototype with leftover CDC and delta knobs"
 requires-python = ">=3.11"
 readme = "README.md"
 

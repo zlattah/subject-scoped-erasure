@@ -4,6 +4,8 @@ This note is the topic menu for the project pivot. It is grounded in Fu et al., 
 
 **Recommended pick:** Do not treat **RAD-CDC** as a new algorithm family. The leftover is **similarity-driven cut migration under exact-stability** (see [rad-cdc.md](rad-cdc.md)). If that hypothesis loses to FastCDC + Palantir + rewrite, the result is still valid.
 
+Measured leftover knobs (adaptive SeqCDC SkipSize, fused SeqCDC fingerprint, entropy mux, encode-free delta-gain predictor) are documented in [improvements.md](improvements.md). Do not claim RapidCDC+SeqCDC, ZERO/RLE, historical recipe reuse, or VectorCDC as new.
+
 ---
 
 ## What the survey actually studies

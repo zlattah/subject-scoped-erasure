@@ -38,7 +38,7 @@ by a better cut rule.
 
 ## Results
 
-`python3 -m pytest`: **24 passed**.
+`python3 -m pytest`: **29 passed**.
 
 The bar is a **small tweak to FastCDC or SeqCDC**, not a new algorithm.
 
@@ -66,8 +66,28 @@ Ablation (same 3.03 MiB timelines, encode-then-filter): **adaptive SkipSize does
 
 **Adaptive skip** vs SeqCDC: mixed seed 0 exact 1.145 → 1.140 (slightly worse); other seeds identical.
 
+### Learned SeqCDC skip / Tmax (`seqcdc-learn`)
+
+Frozen logistic, train seed 101, same 6×512 KiB mixed/random protocol as the other knobs. Labels come from vanilla SeqCDC store oracles (always jump, never rescue). Inference only at SkipTrigger and at Tmax-with-weak.
+
+| corpus | tweak | exact | after delta | chunk MB/s | notes |
+|---|---|---:|---:|---:|---|
+| mixed seed 0 | SeqCDC | 1.145 | 4.324 | 12.99 | published |
+| mixed seed 0 | SeqCDC + Tmax rescue | **1.150** | **4.648** | 9.93 | 34 rescues |
+| mixed seed 0 | SeqCDC + learned | **1.150** | **4.648** | 9.95 | copies always-rescue: skip `constant(1)` n=1035/1035, Tmax `constant(1)` n=7 pos=5 |
+| mixed seed 11 | SeqCDC | 1.177 | 4.599 | 12.96 | published |
+| mixed seed 11 | SeqCDC + Tmax rescue | **1.203** | 4.569 | 10.35 | 25 rescues |
+| mixed seed 11 | SeqCDC + learned | **1.203** | 4.569 | 10.31 | same collapse |
+| random seed 0 | SeqCDC / +Tmax / learned | 1.608 / 1.608 / 1.608 | 4.114 | ~13.1 | Tmax 8 rescues, learned 0; stored bytes unchanged |
+
+**The results are not good as an ML tweak.** On this train set the skip oracle has **zero hold labels** (a SeqLength=6 increasing run almost never appears inside a 256-byte skip after 50 opposing pairs). Tmax has only 7 rows (5 rescue), below `min_examples=12`, so the Tmax head falls back to always-rescue — the hand rule that already helped. `seqcdc-learn` therefore matches `seqcdc-tmax` on mixed data and matches published SeqCDC on random (where the two Tmax train labels were both “keep Tmax”).
+
+A diagnostic with a richer train (seed 101, 6×2 MiB mixed) does fit a Tmax logistic (18 rows, 8 positive, threshold 0.60). On the frozen 6×512 KiB tests it **under-rescues and loses the hand-tweak lift**: mixed seed 0 exact 1.150 → 1.122 and post-delta 4.648 → 4.321 (8 rescues vs 34); mixed seed 11 exact 1.203 → 1.176 (1 rescue vs 25). Skip stays `constant(1)`. Default `bench` does **not** use that larger train.
+
+FastCDC still wins both ratios. The small SeqCDC tweak that moved space savings remains **always-rescue at Tmax**, not a learned gate.
+
 ### Other knobs (unchanged conclusion)
 
-Mux, fused fingerprint, RAD similar-migrate, and the encode-free predictor still do not give a small, reliable lift. Predictor: fewer zlib encodes, worse stored bytes.
+Mux, fused fingerprint, RAD similar-migrate, the encode-free predictor, and the learned SeqCDC skip/Tmax scorer still do not give a small, reliable lift beyond SeqCDC Tmax rescue. Predictor: fewer zlib encodes, worse stored bytes.
 
 Laptop-scale synthetic timelines only. A C inner loop could still change the throughput column; it would not change which tweak moved ratio.

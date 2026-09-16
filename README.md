@@ -104,7 +104,7 @@ python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profil
 
 `bench` compares FastCDC, FastCDC Tmax-rescue, SeqCDC, SeqCDC Tmax-rescue, learned SeqCDC skip/Tmax (`seqcdc-learn`, train seed 101), adaptive-skip SeqCDC, fused-fingerprint SeqCDC, the entropy mux, and RAD-CDC. Default `--profile mixed` is a structured+random timeline; `--profile random` is the original uniform-byte corpus.
 
-On these files the only leftover knob that acts like a **small published-method tweak** is SeqCDC Tmax rescue (weaker cut only when SeqCDC would emit Tmax): mixed seed 0 post-delta 4.324 → 4.648; mixed seed 11 exact 1.177 → 1.203. It costs chunking speed and does not overtake FastCDC. Adaptive skip and FastCDC Tmax rescue do not help. A loss is an allowed result.
+On these files the only leftover knob that acts like a **small published-method tweak** is SeqCDC Tmax rescue (weaker cut only when SeqCDC would emit Tmax): mixed seed 0 post-delta 4.324 → 4.648; mixed seed 11 exact 1.177 → 1.203. It costs chunking speed and does not overtake FastCDC. Adaptive skip, FastCDC Tmax rescue, and the learned SeqCDC skip/Tmax scorer do not help: `seqcdc-learn` copies always-rescue on the mixed 6×512 KiB train (no skip-hold labels; too few Tmax rows) and a larger-train Tmax logistic under-rescues and loses that lift. A loss is an allowed result.
 
 - Cut migration: [docs/rad-cdc.md](docs/rad-cdc.md)
 - Leftover knobs and measurements: [docs/improvements.md](docs/improvements.md)

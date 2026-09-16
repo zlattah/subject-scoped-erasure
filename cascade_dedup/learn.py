@@ -276,16 +276,21 @@ class LearnedSeqPolicy:
         self.tmax_keeps = 0
 
     def jump_size(self, data: bytes, start: int, pos: int, skips: int, default: int) -> int:
-        feats = skip_features(data, start, pos, skips, self.params)
-        if self.skip_head.predict(feats):
+        if self.skip_head.source.startswith("constant"):
+            take = self.skip_head.intercept > 0
+        else:
+            take = self.skip_head.predict(skip_features(data, start, pos, skips, self.params))
+        if take:
             self.skip_jumps += 1
             return default
         self.skip_holds += 1
         return 0
 
     def use_weak(self, data: bytes, start: int, weak: int, max_end: int, skips: int) -> bool:
-        feats = tmax_features(data, start, weak, max_end, skips, self.params)
-        take = self.tmax_head.predict(feats)
+        if self.tmax_head.source.startswith("constant"):
+            take = self.tmax_head.intercept > 0
+        else:
+            take = self.tmax_head.predict(tmax_features(data, start, weak, max_end, skips, self.params))
         if take:
             self.rescues += 1
         else:

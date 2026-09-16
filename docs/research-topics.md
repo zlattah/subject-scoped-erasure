@@ -196,3 +196,34 @@ Each topic has: the gap, why it can beat current methods, how hard it is to prot
 Keep **only the narrow RAD-CDC residual** (index-informed cuts that are *allowed to differ* from FastCDC). Treat routing (Topic 2), exact+MinHash (Topic 4), generation-colored GC (Topic 6), and multi-base delta (Topic 7) as **prior work to cite**, not as your algorithm.
 
 Required baselines if you implement RAD-CDC: FastCDC, RapidCDC, and a staged FastCDC → Palantir-style delta → LoopDelta/HAR rewrite. If you cannot beat that staged pipeline, the idea is not novel enough.
+
+---
+
+## Hardware budget (MacBook-scale)
+
+**You cannot do “all of this” at paper scale on a laptop.** LoopDelta’s published eval used ~284–1080 GB datasets on a Xeon with 64 GB RAM, 2 TB HDD, and 8 TB SSD. FastCDC’s later paper used ~6 TB. SEDD/FOLD/PUFFER used GPU clusters and billions of documents. Fu et al.’s industrial products are PB-class.
+
+**You can do a honest RAD-CDC prototype** on the MacBook Pro from the original plan if you cap the workload.
+
+| Resource | Enough for | Not enough for |
+|---|---|---|
+| CPU (M-series or Intel MacBook, 8+ cores) | FastCDC/RAD-CDC in Python or C on tens of GB; serial vs parallel hashing | Matching C/SIMD GB/s numbers from VectorCDC/SeqCDC papers |
+| RAM 16 GB | ~20–50 GB streamed evaluation; index of 8 KB chunks is small (tens of MB per 10 GB unique) | Holding a 300 GB website crawl plus sketch cache plus restore cache in RAM |
+| RAM 32 GB | Comfortable 50–80 GB streamed runs | LoopDelta-size 1 TB Redis backup traces |
+| Disk 256 GB | Tight: 30–40 GB of datasets + unique store | Keeping Linux+Wikipedia+VM images |
+| Disk 512 GB+ | 80–100 GB of versioned tarballs + results | Full Wikimedia dump, 147 kernel tarballs uncompressed (~200 GB) plus extras |
+| GPU | Not required for RAD-CDC | Reproducing SEDD/FED/FOLD |
+| Cluster | Routing *simulator* with N virtual nodes | Real HYDRAstor/Ceph multi-node throughput |
+
+**Laptop-sized corpus that still supports the claim**
+
+- 15–30 Linux kernel release tarballs (compressed; a few GB) — versioned, public, survey-class “source codes.”
+- 10–20 GCC or MySQL release archives — same.
+- Optional: a 2–5 GB Wikipedia or JSONL slice for a fuzzy-gate *demo*, not a FOLD replica.
+- Synthetic backup timeline: copy a tree, mutate a few percent of files, repeat 10–20 generations (~10–40 GB total). That is how you measure restore/fragmentation without a 1 TB Redis dump.
+
+**Time, not just metal.** In Python, CDC+hashing is often tens to hundreds of MB/s, not GB/s. A 40 GB corpus × 4 algorithms × 3 ablations is many hours, not minutes. Write the hot loop in C/Rust/Numba or call DedupBench for chunking-only baselines. Restore **speed factor** can be counted from container IDs; you do not need a second HDD.
+
+**Drop if the machine is the bottleneck:** GPU MinHash at trillion-token scale; Palantir’s full published traces; SuperDelta’s TB backups; real multi-node routing; SIMD bake-off vs VectorCDC.
+
+**Keep:** one RAD-CDC implementation, FastCDC + RapidCDC + a simplified delta/rewrite baseline, on the laptop corpus above. That is enough compute. It is not enough to claim you reproduced LoopDelta’s 1 TB results.

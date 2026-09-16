@@ -42,7 +42,7 @@ Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. D
 - Near-duplicate / delta compression as a first-class metric.
 - Restore-cost modeling via containers.
 - Parallel fingerprinting as an implementation detail, not the thesis.
-- Public datasets (kernel tarballs, software archives, Wikipedia slices).
+**Datasets:** tens of GB of public versioned archives on the MacBook, not TB-class LoopDelta/FastCDC traces. See the hardware budget in [docs/research-topics.md](docs/research-topics.md).
 
 **Out of scope**
 

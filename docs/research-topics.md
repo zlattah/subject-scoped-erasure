@@ -2,7 +2,7 @@
 
 This note is the topic menu for the project pivot. It is grounded in Fu et al., *Distributed Data Deduplication for Big Data: A Survey* (ACM Computing Surveys 58(3), Article 66, 2025, DOI [10.1145/3735508](https://doi.org/10.1145/3735508)), then pushed past that survey into 2025–2026 work and into one original algorithm.
 
-**Recommended pick:** Topic 1, **RAD-CDC** (Restore-And-Delta-aware Content-Defined Chunking) inside a **CascadeDedup** pipeline. Details and pseudocode are in [rad-cdc.md](rad-cdc.md).
+**Recommended pick:** Topic 1, **RAD-CDC**, but only the narrow residual: *change* the CDC cut using exact/delta/restore scores. Most of the earlier topic list is already published as separate stages. See the novelty audit below and [rad-cdc.md](rad-cdc.md).
 
 ---
 
@@ -30,6 +30,24 @@ Their Section 6 future-work buckets are the right place to look for novelty:
 | Application for AI | Dedup training corpora; memory dedup in distributed training; dedup-aware indexes |
 
 **Do not treat “file-level SHA-256 + multiprocessing on a laptop cloud” as a contribution in this literature.** That is an engineering demo. The novel questions live in *how* chunks are cut, *how* near-duplicates are found, *where* they are placed, and *what restore/GC/AI quality you get*.
+
+---
+
+## Novelty audit (are these already implemented?)
+
+Short answer: **the building blocks are implemented; the packaged names are not.** A reviewer will treat “glue FastCDC + Palantir + HAR” as incremental unless the *decision point* is new.
+
+| Earlier suggestion | Already in the literature? | What is actually left |
+|---|---|---|
+| **1. RAD-CDC joint score at cut time** | **Parts, yes.** Candidate backup cuts: TTTD, Bimodal CDC, FastCDC normalized chunking. Index-informed *next* cut: **RapidCDC** (SoCC 2019) jumps to the historically next chunk for *speed*, and tries to keep the *same* ratio. Restore-aware *after* chunking: HAR, Capping, **SDC**, **LoopDelta** (ATC 2023 / ACM ToS 2025), Hybrid-Rewrite (2025). Delta after unique chunks: Palantir, DeepSketch, MeGA, **BePro** (IPDPS 2025). | Unpublished as a *cut chooser that is allowed to change boundaries* to buy delta/restore, not just skip work. That is a composition claim. Defend it only by beating RapidCDC+LoopDelta+Palantir as a staged pipeline. |
+| **2. Sketch-affinity routing** | **Yes, essentially.** EMC stateful superchunks, Extreme Binning, **AppDedupe**, **FASR** (IEEE Access 2022), Bloom-filter routing, dCACH. Palantir sketches are for *intra-node* delta, not routing. | Using Palantir-style hierarchical superfeatures *as the routing key* is a small twist on FASR/AppDedupe, not a new problem. Do not treat this as the thesis. |
+| **3. SeqCDC × Chonkers** | **Both exist (2024–2025).** Chonkers (arXiv:2509.11121) is *designed* to sit on proto-chunks from another CDC. SeqCDC/VectorCDC are the fast hashless/SIMD camp. | Implementing SeqCDC then Chonkers merge is following Chonkers’ own layering. Novel only with a new proof or a measured throughput/locality Pareto the papers do not have. |
+| **4. Exact then MinHash then embeddings** | **Yes for text.** Lee et al. 2022; FineWeb/DCLM recipes; production LLM pipelines (exact → MinHash-LSH → optional SemDeDup). Online/incremental: **SEDD/FED**, **FOLD**, **PUFFER** (2025–2026). | A *mixed binary backup + JSONL* gate is an engineering project, not a new algorithm. Do not claim to beat FOLD on Common Crawl. |
+| **5. Tiny learned CDC cut/skip scorer** | **Related, different problem.** DeepSketch learns *delta sketches*, not cuts. SmartChunker samples CDC *parameters*. RAG “learned chunking” (Meta-Chunking, MoC, 2024–2025) is semantic *text* segmentation. HuggingFace Xet still uses Gearhash CDC. | Byte-level CDC cut scoring for *storage* dedup looks unpublished. “Use ML” is still an obvious idea; the model has to beat FastCDC/SeqCDC on ratio×throughput with frozen train/test corpora. |
+| **6. Generation-colored containers** | **Crowded.** HAR + Container-Marker (2014), DePFC, **GCCDF** (EuroSys/ASPLOS 2025 piggyback defrag on GC), MiDedup (TPDS 2026) for image layers. | Placement-by-generation is a variant of history-aware layout, not a green field. |
+| **7. Multi-base delta + restore SLO** | **Done.** **SuperDelta** (DCC 2024) is multiple referenced bases + rebase for restore. LoopDelta is restore-aware delta vs rewrite. | Drop as a primary contribution. |
+
+**What is safe to say in a viva:** RAD-CDC is not “a new rolling hash.” It is “RapidCDC’s index feedback, but used to *move* the cut for delta/restore, whereas RapidCDC uses it only to *jump* to the cut standard CDC would have found.” If experiments cannot beat a staged FastCDC → Palantir → LoopDelta pipeline, the idea is not better, only differently factored.
 
 ---
 
@@ -165,21 +183,16 @@ Each topic has: the gap, why it can beat current methods, how hard it is to prot
 
 ## Suggested reading order (short)
 
-1. Fu et al. 2025 survey — architecture + taxonomy + §6.
-2. FastCDC (USENIX ATC 2016) and SeqCDC / VectorCDC (2025–2026) — modern chunking.
-3. Palantir (ASPLOS 2024) and DeepSketch (FAST 2022) — resemblance / delta.
-4. Hybrid-Rewrite (ICCD 2025) or MeGA (TPDS 2025) — restore + delta together.
-5. Only if you pick Topic 4: SEDD/FED, FOLD, PUFFER — LLM fuzzy dedup.
+1. Fu et al. 2025 survey — architecture + taxonomy + §6. The §6 “open” items are not all still open in 2026.
+2. FastCDC (ATC 2016); RapidCDC (SoCC 2019); SeqCDC / VectorCDC (2024–2026).
+3. Palantir (ASPLOS 2024); LoopDelta (ATC 2023 / ToS 2025); SuperDelta (DCC 2024).
+4. FASR / AppDedupe — similarity-aware routing (already exists).
+5. LLM fuzzy: Lee et al.; SEDD/FED; FOLD; PUFFER.
 
 ---
 
 ## Recommendation
 
-Pick **Topic 1 (RAD-CDC)** as the novel algorithm, keep **Topic 2** as the “distributed” chapter (simulator, so the project still speaks the survey’s language), and treat **Topic 4** as an optional extra experiment if time remains.
+Keep **only the narrow RAD-CDC residual** (index-informed cuts that are *allowed to differ* from FastCDC). Treat routing (Topic 2), exact+MinHash (Topic 4), generation-colored GC (Topic 6), and multi-base delta (Topic 7) as **prior work to cite**, not as your algorithm.
 
-That combination is:
-
-- not a self-hosted cloud product;
-- aligned with the paper’s hardest open problems (adaptive partitioning, resemblance, restore, routing);
-- implementable without a 100-node cluster;
-- has a clear “even better than SOTA chunkers” hypothesis you can falsify with measurements.
+Required baselines if you implement RAD-CDC: FastCDC, RapidCDC, and a staged FastCDC → Palantir-style delta → LoopDelta/HAR rewrite. If you cannot beat that staged pipeline, the idea is not novel enough.

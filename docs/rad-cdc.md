@@ -20,18 +20,20 @@ Those stages do not share a utility function. A cut that is “content-defined a
 2. produce a unique chunk that is *almost* like a stored chunk but a bad delta source because the cut split a repeated motif;
 3. sprinkle a file’s chunks across many containers, so restore reads explode.
 
-Related work stays in one stage:
+Related work already covers each *stage*. The remaining claim is only that they do not share a cut-time utility:
 
-| Work | What it optimizes | What it ignores at cut time |
+| Work | What it already does | Why it is not RAD-CDC |
 |---|---|---|
-| FastCDC / Gear | speed + size normalization | restore, delta |
-| SeqCDC / VectorCDC | hashless SIMD throughput | restore, delta |
-| Chonkers | size + edit-locality proofs | throughput, delta, restore I/O |
-| RapidCDC | skip hashing using dup locality | *which* cut to choose |
-| Palantir / DeepSketch | finding a delta base | chunk boundaries |
-| HAR / Capping / Hybrid-Rewrite | rewrite after the fact | never re-cuts the stream |
+| FastCDC / Gear / SeqCDC / VectorCDC | Local-byte CDC, speed and size | No index, delta, or restore in the cut |
+| TTTD / Bimodal CDC | Pick among backup cuts | Objective is size / avoid max-chunk, not restore or delta |
+| **RapidCDC (SoCC 2019)** | After a duplicate, jump to the historically next boundary | Goal is *throughput*; validation tries to accept the *same* CDC cut, not a better one |
+| Palantir / DeepSketch / BePro | Find a delta base | After the chunk already exists |
+| HAR / Capping / Hybrid-Rewrite / **SDC** / **LoopDelta** | Restore-aware rewrite or “only delta if base is in cache” | After chunking; they do not move the boundary |
+| **SuperDelta (DCC 2024)** | Multiple base chunks + rebase for restore | Post-dedup delta, not CDC |
 
-RAD-CDC’s claim: **a cheap online score over a handful of candidate cuts can improve bytes-after-dedup+delta and restore I/O, with only a small throughput tax.**
+RAD-CDC is therefore **not a new primitive**. It is a composition: allow a few legal candidate offsets (Bimodal-style), score them with RapidCDC-like index locality **plus** Palantir-like sketches **plus** LoopDelta-like fragmentation, and *accept a different cut* if the score says so.
+
+That is only worth implementing if a staged baseline (FastCDC → exact index → Palantir delta → LoopDelta-style rewrite) loses on the joint metric. If it does not, RAD-CDC is a refactor, not a better algorithm.
 
 ---
 
@@ -220,6 +222,6 @@ That is the difference between a toy and a serious algorithm.
 
 ---
 
-## Why this is a legitimate “better than the paper’s methods” claim
+## Honest novelty claim
 
-The survey’s best partitioning methods are CDC and application-aware chunking. RAD-CDC is **content-defined and workload-adaptive without parsing file formats**, and it is **restore- and delta-aware without waiting for a later pass**. That sits exactly on their open problem: *“find an adaptive data partitioning method to match various application characteristics… to improve global data deduplication efficiency”* — with a concrete utility function they do not provide.
+Fu et al. still ask for adaptive partitioning, but **restore-aware delta and multi-base delta are already implemented** (LoopDelta, SuperDelta). RAD-CDC is only interesting if moving the cut beats applying those methods *after* FastCDC. Cite RapidCDC, Palantir, and LoopDelta as the papers a reviewer will say you combined.

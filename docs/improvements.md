@@ -22,12 +22,18 @@ Train the gain predictor on `--train-seed` (default 101). Report test corpora
 ```bash
 python3 -m pip install -e ".[dev]"
 python3 -m pytest
-python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0
-python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11
+python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profile mixed
+python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11 --profile mixed
+python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profile random
 ```
 
 `bench` prints every mode under `--delta-policy encode,predict`. `chunk_MB_s` is
 cut-finding only; `MB_s` is the full ingest (index + optional zlib-dict).
+
+SeqLength is **6** in this prototype so average chunk size matches FastCDC on
+these synthetic files. Paper Table 1 uses SeqLength=5; on uniform random bytes
+that setting degenerates to ~Tmin chunks and inflates exact-dedup by size, not
+by a better cut rule.
 
 ## Results
 

@@ -66,3 +66,15 @@ def test_mux_reconstructs() -> None:
     classified = mux.fast_cuts + mux.seq_cuts
     assert classified in {len(chunks) - 1, len(chunks)}
     assert classified >= 1
+
+
+def test_skip_fires_on_descending_ramp() -> None:
+    data = bytes([(255 - (i % 256)) for i in range(40_000)])
+    cdc = SeqCDC(seq=SeqParams(seq_length=8, skip_trigger=8, skip_size=64))
+    cdc.cuts(data)
+    assert cdc.skip_count > 0
+    data = versioned_blobs(n_versions=1, base_size=80_000, seed=2, profile="mixed")[0]
+    assert b"".join(SeqCDC().chunks(data)) == data
+    mux = EntropyMux()
+    assert b"".join(mux.chunks(data)) == data
+    assert mux.fast_cuts >= 1 or mux.seq_cuts >= 1

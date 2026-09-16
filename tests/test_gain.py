@@ -12,8 +12,8 @@ def test_ols_recovers_line() -> None:
 
 
 def test_predictor_skips_some_encodes() -> None:
-    train = versioned_blobs(n_versions=4, base_size=60_000, seed=21)
-    test = versioned_blobs(n_versions=4, base_size=60_000, seed=7)
+    train = versioned_blobs(n_versions=5, base_size=80_000, seed=21, profile="mixed")
+    test = versioned_blobs(n_versions=5, base_size=80_000, seed=7, profile="mixed")
     pred = train_gain_predictor(train, min_examples=8)
     _, enc = ingest_versions(test, mode="fastcdc", do_delta=True, delta_policy="encode")
     _, pr = ingest_versions(test, mode="fastcdc", do_delta=True, delta_policy="predict", predictor=pred)

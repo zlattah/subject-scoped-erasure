@@ -46,6 +46,7 @@ class EntropyMux:
     def cuts(self, data: bytes) -> list[int]:
         self.seq_cuts = 0
         self.fast_cuts = 0
+        self.seq.skip_count = 0
         ends: list[int] = []
         start = 0
         n = len(data)

@@ -99,9 +99,10 @@ python3 -m pip install -e ".[dev]"
 python3 -m pytest
 python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0
 python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11
+python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profile random
 ```
 
-`bench` compares FastCDC, RAD-CDC (`exact` / `similar` migrate), SeqCDC, adaptive-skip SeqCDC, fused-fingerprint SeqCDC, and the entropy mux. Each mode is run with zlib-dict **encode-then-filter** and with the **encode-free predictor** (trained on `--train-seed`, default 101).
+`bench` compares FastCDC, RAD-CDC (`exact` / `similar` migrate), SeqCDC, adaptive-skip SeqCDC, fused-fingerprint SeqCDC, and the entropy mux. Default `--profile mixed` is a structured+random timeline so skip/mux/predict can fire; `--profile random` is the original uniform-byte corpus. Each mode is run with zlib-dict **encode-then-filter** and with the **encode-free predictor** (trained on `--train-seed`, default 101).
 
 On the original 3 MiB timeline, similarity-driven RAD migration sometimes helped a little (seed 11) and sometimes hurt exact-dedup (seed 0). `radcdc-exact` matched FastCDC. A loss is an allowed result.
 

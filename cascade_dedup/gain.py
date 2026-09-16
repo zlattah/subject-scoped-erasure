@@ -84,6 +84,41 @@ def fit_ols(x: list[tuple[float, ...]], y: list[float], ridge: float = 1e-2) -> 
     return tuple(w[1:]), w[0]
 
 
+def _calibrate_threshold(
+    xs: list[tuple[float, ...]],
+    ys: list[float],
+    weights: tuple[float, ...],
+    intercept: float,
+    min_gain: float,
+) -> float:
+    """Pick a score threshold that keeps most true pays (recall >= 0.8) and skips wasted encodes."""
+    scores = [intercept + sum(w * f for w, f in zip(weights, row)) for row in xs]
+    labels = [y >= min_gain for y in ys]
+    n_pos = sum(labels)
+    n_neg = len(labels) - n_pos
+    if n_pos == 0 or n_neg == 0:
+        return min_gain
+    best_t = min_gain
+    best_tn = -1
+    for t in sorted(set(scores)):
+        tp = tn = fn = 0
+        for s, lab in zip(scores, labels):
+            pred = s >= t
+            if pred and lab:
+                tp += 1
+            elif (not pred) and lab:
+                fn += 1
+            elif (not pred) and (not lab):
+                tn += 1
+        rec = tp / n_pos if n_pos else 1.0
+        if rec < 0.8:
+            continue
+        if tn > best_tn:
+            best_tn = tn
+            best_t = t
+    return best_t
+
+
 @dataclass
 class GainPredictor:
     """Predict (1 - delta_size/raw_size). Encode only if prediction >= threshold."""
@@ -92,6 +127,7 @@ class GainPredictor:
     intercept: float = -0.12
     threshold: float = 0.10
     n_train: int = 0
+    n_neg: int = 0
     source: str = "heuristic"
 
     def predict(self, chunk: bytes, base: bytes, pos_sim: float, finesse_sim: float) -> float:
@@ -157,10 +193,13 @@ def train_gain_predictor(
         pred.source = f"heuristic(n={len(xs)})"
         return pred
     weights, intercept = fit_ols(xs, ys)
+    n_neg = sum(1 for y in ys if y < threshold)
+    chosen = _calibrate_threshold(xs, ys, weights, intercept, threshold)
     return GainPredictor(
         weights=weights,
         intercept=intercept,
-        threshold=threshold,
+        threshold=chosen,
         n_train=len(xs),
+        n_neg=n_neg,
         source="ols",
     )

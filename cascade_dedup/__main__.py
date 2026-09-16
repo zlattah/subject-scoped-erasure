@@ -11,15 +11,16 @@ from cascade_dedup.gain import train_gain_predictor
 from cascade_dedup.pipeline import ALL_MODES, ingest_versions
 
 
-def _print_table(rows: list[dict]) -> None:
+def _print_table(rows: list[dict], *, file=None) -> None:
     if not rows:
         return
+    out = file or sys.stdout
     keys = [k for k in rows[0] if k != "name"]
     name_w = max(len(str(r["name"])) for r in rows)
     name_w = max(name_w, 4)
-    print(f"{'mode':<{name_w}}  " + "  ".join(f"{k:>16}" for k in keys))
+    print(f"{'mode':<{name_w}}  " + "  ".join(f"{k:>16}" for k in keys), file=out)
     for row in rows:
-        print(f"{row['name']:<{name_w}}  " + "  ".join(f"{row[k]:>16}" for k in keys))
+        print(f"{row['name']:<{name_w}}  " + "  ".join(f"{row[k]:>16}" for k in keys), file=out)
 
 
 def _parse_csv(raw: str) -> list[str]:
@@ -31,10 +32,12 @@ def cmd_bench(args: argparse.Namespace) -> int:
         n_versions=args.versions,
         base_size=args.base_size,
         seed=args.seed,
+        profile=args.profile,
     )
     logical = sum(len(v) for v in versions)
     print(
-        f"corpus: {args.versions} versions, {logical / (1024 * 1024):.2f} MiB logical, seed={args.seed}",
+        f"corpus: {args.versions} versions, {logical / (1024 * 1024):.2f} MiB logical, "
+        f"seed={args.seed} profile={args.profile}",
         file=sys.stderr,
     )
     modes = list(ALL_MODES) if args.modes == "all" else _parse_csv(args.modes)
@@ -45,12 +48,13 @@ def cmd_bench(args: argparse.Namespace) -> int:
             n_versions=args.versions,
             base_size=args.base_size,
             seed=args.train_seed,
+            profile=args.profile,
         )
         predictor = train_gain_predictor(train, threshold=args.gain_threshold)
         print(
-            f"predictor: source={predictor.source} n_train={predictor.n_train} "
+            f"predictor: source={predictor.source} n_train={predictor.n_train} n_neg={predictor.n_neg} "
             f"weights={tuple(round(w, 3) for w in predictor.weights)} "
-            f"intercept={predictor.intercept:.3f} threshold={predictor.threshold}",
+            f"intercept={predictor.intercept:.3f} threshold={predictor.threshold:.3f}",
             file=sys.stderr,
         )
     rows = []
@@ -64,9 +68,11 @@ def cmd_bench(args: argparse.Namespace) -> int:
                 predictor=predictor,
             )
             rows.append(stats.as_row())
-    _print_table(rows)
     if args.json:
+        _print_table(rows, file=sys.stderr)
         print(json.dumps(rows, indent=2))
+    else:
+        _print_table(rows)
     return 0
 
 
@@ -77,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     bench.add_argument("--versions", type=int, default=6)
     bench.add_argument("--base-size", type=int, default=512 * 1024)
     bench.add_argument("--seed", type=int, default=0)
+    bench.add_argument("--profile", choices=("random", "mixed"), default="mixed")
     bench.add_argument("--train-seed", type=int, default=101, help="frozen corpus seed for the gain predictor")
     bench.add_argument("--modes", default="all", help="comma-separated modes, or 'all'")
     bench.add_argument(

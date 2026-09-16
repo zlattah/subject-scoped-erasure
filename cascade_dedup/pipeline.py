@@ -44,6 +44,7 @@ class IngestStats:
     predict_skip: int = 0
     mux_fast_cuts: int = 0
     mux_seq_cuts: int = 0
+    seq_skips: int = 0
 
     @property
     def dedup_ratio(self) -> float:
@@ -80,7 +81,9 @@ class IngestStats:
             "exact_hits": self.exact_hits,
             "migrated_cuts": self.migrated_cuts,
             "delta_encodes": self.delta_encodes,
+            "delta_kept": self.delta_kept,
             "predict_skip": self.predict_skip,
+            "seq_skips": self.seq_skips,
             "avg_chunk": round(self.avg_chunk, 1),
             "chunk_MB_s": round(chunk_mib / self.chunk_elapsed_s, 2) if self.chunk_elapsed_s else 0.0,
             "MB_s": round(chunk_mib / self.elapsed_s, 2) if self.elapsed_s else 0.0,
@@ -91,22 +94,26 @@ def _cuts_for_mode(
     mode: str,
     data: bytes,
     store: ChunkStore,
-) -> tuple[list[int], list[bytes] | None, EntropyMux | None]:
+) -> tuple[list[int], list[bytes] | None, EntropyMux | None, int]:
     if mode == "fastcdc":
-        return FastCDC().cuts(data), None, None
+        return FastCDC().cuts(data), None, None, 0
     if mode == "seqcdc":
-        return SeqCDC().cuts(data), None, None
+        cdc = SeqCDC()
+        return cdc.cuts(data), None, None, cdc.skip_count
     if mode == "seqcdc-adapt":
-        return SeqCDC(adaptive_skip=True, tmax_rescue=True).cuts(data), None, None
+        cdc = SeqCDC(adaptive_skip=True, tmax_rescue=True)
+        return cdc.cuts(data), None, None, cdc.skip_count
     if mode == "seqcdc-fused":
-        ends, fps = SeqCDC(fuse_fingerprint=True).cuts_with_fps(data)
-        return ends, fps, None
+        cdc = SeqCDC(fuse_fingerprint=True)
+        ends, fps = cdc.cuts_with_fps(data)
+        return ends, fps, None, cdc.skip_count
     if mode == "mux":
         mux = EntropyMux()
-        return mux.cuts(data), None, mux
+        ends = mux.cuts(data)
+        return ends, None, mux, mux.seq.skip_count
     if mode in {"radcdc", "radcdc-exact"}:
         chunker = RADCDC(migrate="exact" if mode == "radcdc-exact" else "similar")
-        return chunker.cuts(data, store), None, None
+        return chunker.cuts(data, store), None, None, 0
     raise ValueError(f"unknown mode {mode!r}")
 
 
@@ -124,12 +131,13 @@ def ingest_stream(
     store = store or ChunkStore()
     t0 = perf_counter()
     t_chunk = perf_counter()
-    ends, fps, mux = _cuts_for_mode(mode, data, store)
+    ends, fps, mux, seq_skips = _cuts_for_mode(mode, data, store)
     chunk_elapsed = perf_counter() - t_chunk
     natural_tracker = FastCDC() if mode in {"radcdc", "radcdc-exact"} else None
     pred = predictor or GainPredictor.heuristic()
 
     stats = IngestStats(name=f"{mode}/{delta_policy}" if delta_policy != "encode" else mode)
+    stats.seq_skips = seq_skips
     if mux is not None:
         stats.mux_fast_cuts = mux.fast_cuts
         stats.mux_seq_cuts = mux.seq_cuts
@@ -214,6 +222,7 @@ def ingest_versions(
         acc.predict_skip += one.predict_skip
         acc.mux_fast_cuts += one.mux_fast_cuts
         acc.mux_seq_cuts += one.mux_seq_cuts
+        acc.seq_skips += one.seq_skips
         acc.chunk_elapsed_s += one.chunk_elapsed_s
         acc.restore_containers = max(acc.restore_containers, one.restore_containers)
     acc.unique_bytes = store.unique_bytes

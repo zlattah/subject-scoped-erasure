@@ -25,7 +25,7 @@ from cascade_dedup.entropy import bigram_entropy
 
 @dataclass(frozen=True)
 class SeqParams:
-    seq_length: int = 5
+    seq_length: int = 6
     skip_trigger: int = 50
     skip_size: int = 256
     increasing: bool = True
@@ -38,7 +38,12 @@ class SeqParams:
 
 
 class SeqCDC:
-    """Hashless monotonic-sequence CDC, 8 KiB-class parameters from the paper."""
+    """Hashless monotonic-sequence CDC.
+
+    Paper Table 1 uses SeqLength=5 for 8 KiB on their datasets. On uniform
+    random bytes SeqLength=5 cuts near Tmin (~2.8 KiB). SeqLength=6 matches
+    FastCDC's ~8 KiB average on the synthetic corpora in this repo.
+    """
 
     def __init__(
         self,
@@ -69,6 +74,7 @@ class SeqCDC:
             raise ValueError("seq_length must be >= 1")
         if self.seq.skip_min < 1 or self.seq.skip_max < self.seq.skip_min:
             raise ValueError("require 0 < skip_min <= skip_max")
+        self.skip_count = 0
 
     def next_cut(self, data: bytes, start: int) -> int:
         return self._scan(data, start)[0]
@@ -80,6 +86,7 @@ class SeqCDC:
         return end, fp
 
     def cuts(self, data: bytes) -> list[int]:
+        self.skip_count = 0
         ends: list[int] = []
         start = 0
         n = len(data)
@@ -90,6 +97,7 @@ class SeqCDC:
         return ends
 
     def cuts_with_fps(self, data: bytes) -> tuple[list[int], list[bytes]]:
+        self.skip_count = 0
         ends: list[int] = []
         fps: list[bytes] = []
         start = 0
@@ -185,6 +193,7 @@ class SeqCDC:
                 opposing += 1
                 if opposing >= s.skip_trigger:
                     skip = self._adaptive_skip_size(data, start, i) if s.adaptive_skip else s.skip_size
+                    self.skip_count += 1
                     i += skip
                     opposing = 0
                     run = 0

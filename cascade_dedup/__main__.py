@@ -33,7 +33,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     rows = []
-    for mode in ("fastcdc", "radcdc"):
+    for mode in ("fastcdc", "radcdc-exact", "radcdc"):
         _, stats = ingest_versions(versions, mode=mode, do_delta=True)
         rows.append(stats.as_row())
     _print_table(rows)

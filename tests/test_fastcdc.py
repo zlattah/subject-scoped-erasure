@@ -31,3 +31,7 @@ def test_chunks_reconstruct() -> None:
     cdc = FastCDC()
     data = bytes(range(256)) * 100
     assert b"".join(cdc.chunks(data)) == data
+
+
+def test_fingerprint_changes_with_bytes() -> None:
+    assert fingerprint(b"aaaa") != fingerprint(b"aaab")

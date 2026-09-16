@@ -46,6 +46,14 @@ def test_rad_may_migrate_on_near_duplicates() -> None:
     assert rad.after_delta_bytes <= rad.unique_bytes or rad.after_delta_bytes > 0
 
 
+def test_exact_only_mode_runs() -> None:
+    versions = versioned_blobs(n_versions=3, base_size=60_000, seed=8)
+    _, fast = ingest_versions(versions, mode="fastcdc", do_delta=False)
+    _, exact = ingest_versions(versions, mode="radcdc-exact", do_delta=False)
+    assert exact.logical_bytes == fast.logical_bytes
+    assert exact.unique_bytes <= fast.logical_bytes
+
+
 def test_versioned_ingest_runs_both_modes() -> None:
     versions = versioned_blobs(n_versions=4, base_size=80_000, seed=2)
     _, fast = ingest_versions(versions, mode="fastcdc", do_delta=True)

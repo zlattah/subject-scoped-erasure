@@ -82,8 +82,8 @@ def ingest_stream(
         chunker = FastCDC()
         natural_tracker = FastCDC()
         ends = chunker.cuts(data)
-    elif mode == "radcdc":
-        chunker = RADCDC()
+    elif mode in {"radcdc", "radcdc-exact"}:
+        chunker = RADCDC(migrate="exact" if mode == "radcdc-exact" else "similar")
         natural_tracker = FastCDC()
         ends = chunker.cuts(data, store)
     else:
@@ -96,7 +96,7 @@ def ingest_stream(
         chunk = data[prev:end]
         stats.chunks += 1
         stats.chunk_size_sum += len(chunk)
-        if mode == "radcdc":
+        if mode in {"radcdc", "radcdc-exact"}:
             natural_end = natural_tracker.next_cut(data, prev)
             if end != natural_end:
                 stats.migrated_cuts += 1

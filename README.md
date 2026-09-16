@@ -100,6 +100,6 @@ python3 -m pytest
 python3 -m cascade_dedup bench --versions 6 --base-size 524288
 ```
 
-`bench` prints FastCDC vs RAD-CDC on a synthetic backup timeline (mutations, inserts, boundary noise). A loss for RAD-CDC is an allowed result.
+`bench` prints FastCDC vs `radcdc-exact` (only migrate on an exact store hit) vs `radcdc` (also migrate toward similar chunks). On a 3 MiB synthetic timeline, similarity migration sometimes helps a little (seed 11) and sometimes hurts exact-dedup (seed 0). Exact-only matched FastCDC on those runs. A loss is an allowed result.
 
 Algorithm notes: [docs/rad-cdc.md](docs/rad-cdc.md).

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from cascade_dedup.chunking import fingerprint, sketch, sketch_similarity
 
 
-CONTAINER_TARGET = 4 * 1024 * 1024
+CONTAINER_TARGET = 256 * 1024
 
 
 @dataclass

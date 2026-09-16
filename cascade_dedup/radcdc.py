@@ -30,11 +30,15 @@ class RADCDC:
         params: CDCParams | None = None,
         weights: RADWeights | None = None,
         max_candidates: int = 8,
+        migrate: str = "similar",
     ) -> None:
+        if migrate not in {"similar", "exact"}:
+            raise ValueError("migrate must be 'similar' or 'exact'")
         self.fast = FastCDC(params)
         self.params = self.fast.params
         self.weights = weights or RADWeights()
         self.max_candidates = max_candidates
+        self.migrate = migrate
 
     def cuts(self, data: bytes, store: ChunkStore) -> list[int]:
         ends: list[int] = []
@@ -92,6 +96,8 @@ class RADCDC:
             chunk = data[start:end]
             hit = store.lookup(fingerprint(chunk))
             if hit is None:
+                if self.migrate == "exact":
+                    continue
                 _, sim = store.best_similar(sketch(chunk))
                 if sim < 0.25:
                     continue

@@ -1,8 +1,8 @@
 """Local-entropy CDC multiplexer.
 
-SeqCDC and FastCDC are both published. The leftover is a *per-chunk switch*
-using only a short local 2-gram entropy window: low entropy → FastCDC (SeqCDC
-pathologically over-cuts on ramps / long monotonic runs), otherwise SeqCDC.
+SeqCDC and FastCDC are both published. The leftover is a *per-chunk switch* using only local 2-gram entropy of the
+upcoming Tmin span: low entropy → FastCDC (SeqCDC pathologically over-cuts on
+ramps / long monotonic runs), otherwise SeqCDC.
 
 The switch is a function of local bytes only, so identical files still agree.
 """
@@ -30,13 +30,24 @@ class EntropyMux:
         self.seq_cuts = 0
         self.fast_cuts = 0
 
+    def _local_entropy(self, data: bytes, start: int) -> float:
+        """Min 2-gram entropy of 64-byte windows in the upcoming Tmin span."""
+        look = min(len(data), start + self.params.min_size)
+        best = 99.0
+        pos = start
+        while pos < look:
+            h = bigram_entropy(data[pos : pos + self.window])
+            if h < best:
+                best = h
+            pos += self.window
+        return 0.0 if best == 99.0 else best
+
     def next_cut(self, data: bytes, start: int) -> int:
         n = len(data)
         remaining = n - start
         if remaining <= self.params.min_size:
             return n
-        wend = min(n, start + self.window)
-        h = bigram_entropy(data[start:wend])
+        h = self._local_entropy(data, start)
         if h < self.threshold:
             self.fast_cuts += 1
             return self.fast.next_cut(data, start)

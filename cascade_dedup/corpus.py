@@ -18,12 +18,18 @@ def _mixed_base(rng: random.Random, size: int) -> bytearray:
     while pos < size:
         span = min(page, size - pos)
         roll = rng.randrange(100)
-        if roll < 40:
+        if roll < 25:
+            # Low-entropy repeats so the mux has a FastCDC side (2-gram H ≪ 3.5).
+            rec_len = rng.choice((1, 2, 4, 8))
+            rec = bytes(rng.randrange(256) for _ in range(rec_len))
+            for i in range(span):
+                buf[pos + i] = rec[i % rec_len]
+        elif roll < 50:
             rec_len = rng.choice((64, 96, 128))
             rec = bytes(rng.randrange(32, 126) for _ in range(rec_len))
             for i in range(span):
                 buf[pos + i] = rec[i % rec_len]
-        elif roll < 70:
+        elif roll < 75:
             buf[pos : pos + span] = rng.randbytes(span)
         elif roll < 85:
             start_v = rng.randrange(256)

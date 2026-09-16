@@ -84,6 +84,8 @@ class IngestStats:
             "delta_kept": self.delta_kept,
             "predict_skip": self.predict_skip,
             "seq_skips": self.seq_skips,
+            "mux_fast": self.mux_fast_cuts,
+            "mux_seq": self.mux_seq_cuts,
             "avg_chunk": round(self.avg_chunk, 1),
             "chunk_MB_s": round(chunk_mib / self.chunk_elapsed_s, 2) if self.chunk_elapsed_s else 0.0,
             "MB_s": round(chunk_mib / self.elapsed_s, 2) if self.elapsed_s else 0.0,

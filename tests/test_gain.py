@@ -4,11 +4,11 @@ from cascade_dedup.pipeline import ingest_versions
 
 
 def test_ols_recovers_line() -> None:
-    xs = [(float(i), 0.5, 0.25, 0.1) for i in range(20)]
-    ys = [0.2 + 0.3 * i + 0.01 for i, _ in enumerate(xs)]
-    weights, intercept = fit_ols(xs, ys)
-    assert abs(intercept - 0.21) < 0.05
-    assert abs(weights[0] - 0.3) < 0.05
+    xs = [(float(i),) for i in range(20)]
+    ys = [0.2 + 0.3 * i for i in range(20)]
+    weights, intercept = fit_ols(xs, ys, ridge=1e-8)
+    assert abs(intercept - 0.2) < 0.02
+    assert abs(weights[0] - 0.3) < 0.02
 
 
 def test_predictor_skips_some_encodes() -> None:

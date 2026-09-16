@@ -62,4 +62,7 @@ def test_mux_reconstructs() -> None:
     mux = EntropyMux()
     chunks = mux.chunks(data)
     assert b"".join(chunks) == data
-    assert mux.fast_cuts + mux.seq_cuts == len(chunks)
+    # The file tail (<= Tmin) is not classified as FastCDC or SeqCDC.
+    classified = mux.fast_cuts + mux.seq_cuts
+    assert classified in {len(chunks) - 1, len(chunks)}
+    assert classified >= 1

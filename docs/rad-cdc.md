@@ -1,8 +1,76 @@
-# RAD-CDC: a novel algorithm to beat stage-by-stage dedup
+# RAD-CDC: what is actually novel (and what is not)
 
-**RAD-CDC** (Restore-And-Delta-aware Content-Defined Chunking) is the original algorithm this project should implement. It is designed to do **better than “run FastCDC, then hash, then maybe delta, then maybe rewrite”** by folding those later concerns into the cut decision itself.
+**Short answer:** RAD-CDC is not a new primitive. I oversold it. The rolling hash, candidate cuts, exact index, sketches, delta, and restore rewrite are all published. What is left is a **narrow hypothesis**, not a named invention.
 
-This is not another rolling-hash variant. FastCDC, SeqCDC, and Chonkers still answer only: *“does this local byte window look like a boundary?”* RAD-CDC answers: *“among legal boundaries, which cut is best for exact hits, delta, and future restore?”*
+---
+
+## What is not novel
+
+| Piece of “RAD-CDC” | Already published |
+|---|---|
+| Content-defined cuts from local bytes | Rabin, FastCDC, SeqCDC, VectorCDC, Chonkers |
+| Pick among several legal cuts | TTTD; Bimodal CDC (FAST 2010) |
+| **Query the store while chunking** | Bimodal: “always emit an already-existing big chunk.” Frequency-based chunking (Lu et al., MASCOTS 2010) uses global chunk frequency to choose cuts |
+| Jump using previous duplicate’s next size | RapidCDC (SoCC 2019) — for **speed**, same cuts |
+| Find similar chunks and delta-encode | Palantir, DeepSketch, Odess, Finesse, BePro |
+| Refuse a duplicate/delta that wrecks restore | HAR, Capping, SDC, LoopDelta, Hybrid-Rewrite |
+| Weighted sum of ratio vs restore vs size | Implicit in every rewrite/capping paper |
+
+A staged pipeline **Bimodal/FastCDC → Palantir → LoopDelta** already does “exact, then similar, then restore.” Calling that stack RAD-CDC does not make it new.
+
+---
+
+## The only leftover question
+
+Standard CDC is a function of the **bytes only**:
+
+`cut = f(data, Tmin, Tavg, Tmax)`
+
+Store-informed chunkers (Bimodal, FBC) already break that for **exact** hits: they ask “does this candidate already exist?” and prefer yes.
+
+Nobody I found asks, **at cut time**:
+
+> Among legal nearby offsets, should I *move* the boundary because a **similar** (not identical) stored chunk would delta-compress better, without blowing restore I/O?
+
+That is the whole residue:
+
+- Bimodal/FBC move or choose cuts for **exact** presence/frequency.
+- Palantir/LoopDelta use **similarity and restore** only **after** the chunk is already cut.
+- RapidCDC uses the index to **skip to** the content-defined cut, not to **replace** it.
+
+So the claim is not “a new hash.” It is:
+
+**Delta-aware, restore-penalized cut *migration*, with an exact-stability rule.**
+
+The stability rule is the part that could be interesting: if the same bytes are ingested twice, you must still emit the same cuts (otherwise you destroy CDC). A shifted cut is allowed only when the natural CDC chunk is **not** an exact hit and a nearby offset is a better delta/restore trade. Identical files stay aligned; near-duplicates may be re-cut toward the store.
+
+That rule is what stops this from being “just Bimodal with extra scores.” Bimodal already prefers exact hits. The new bet is that **similarity should be allowed to move a cut that would otherwise be unique.**
+
+---
+
+## Why a reviewer can still reject it
+
+1. **It is a composition.** Weighted `ExactGain + DeltaGain − FragCost` is three known metrics at a new decision point.
+2. **It may be wrong.** CDC exists so similar files share boundaries *without* looking at the store. Store-conditioned shifts can help file B match A, then **hurt** file C matching A (order dependence). If experiments show that, the idea is a negative result.
+3. **Laptop eval** (tens of GB) will not convince a FAST/ATC reviewer you beat LoopDelta. It can still be a course project: measure the hypothesis on kernel/GCC tarballs.
+
+---
+
+## How to talk about it honestly
+
+Do **not** say: “I invented a novel CDC algorithm called RAD-CDC.”
+
+Do say: “I test whether **moving** CDC cuts using resemblance and restore cost beats the published staged pipeline (FastCDC/Bimodal + Palantir + rewrite). The new mechanism is similarity-driven cut migration under exact-stability. If it loses, that supports keeping chunking content-only.”
+
+That is a measurement thesis with a small algorithmic knob. It is not a new family of chunking.
+
+---
+
+## If you need something stronger than this residue
+
+Then do not implement RAD-CDC as the contribution. Stronger (harder) leftovers: a **proof** that similarity-driven migration cannot break exact-stability; or a **learned byte-level cut scorer** with frozen train/test corpora vs FastCDC/SeqCDC. Both are still “obvious next steps,” but they are not a relabeling of Palantir.
+
+The rest of this file is a prototype design for the residue, not a claim that the components are new.
 
 ---
 

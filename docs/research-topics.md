@@ -2,7 +2,7 @@
 
 This note is the topic menu for the project pivot. It is grounded in Fu et al., *Distributed Data Deduplication for Big Data: A Survey* (ACM Computing Surveys 58(3), Article 66, 2025, DOI [10.1145/3735508](https://doi.org/10.1145/3735508)), then pushed past that survey into 2025–2026 work and into one original algorithm.
 
-**Recommended pick:** Topic 1, **RAD-CDC**, but only the narrow residual: *change* the CDC cut using exact/delta/restore scores. Most of the earlier topic list is already published as separate stages. See the novelty audit below and [rad-cdc.md](rad-cdc.md).
+**Recommended pick:** Do not treat **RAD-CDC** as a new algorithm family. The leftover is **similarity-driven cut migration under exact-stability** (see [rad-cdc.md](rad-cdc.md)). If that hypothesis loses to FastCDC + Palantir + rewrite, the result is still valid.
 
 ---
 
@@ -39,7 +39,7 @@ Short answer: **the building blocks are implemented; the packaged names are not.
 
 | Earlier suggestion | Already in the literature? | What is actually left |
 |---|---|---|
-| **1. RAD-CDC joint score at cut time** | **Parts, yes.** Candidate backup cuts: TTTD, Bimodal CDC, FastCDC normalized chunking. Index-informed *next* cut: **RapidCDC** (SoCC 2019) jumps to the historically next chunk for *speed*, and tries to keep the *same* ratio. Restore-aware *after* chunking: HAR, Capping, **SDC**, **LoopDelta** (ATC 2023 / ACM ToS 2025), Hybrid-Rewrite (2025). Delta after unique chunks: Palantir, DeepSketch, MeGA, **BePro** (IPDPS 2025). | Unpublished as a *cut chooser that is allowed to change boundaries* to buy delta/restore, not just skip work. That is a composition claim. Defend it only by beating RapidCDC+LoopDelta+Palantir as a staged pipeline. |
+| **1. RAD-CDC joint score at cut time** | **Mostly yes.** Store-informed *exact* cut choice: **Bimodal CDC** (FAST 2010), **FBC** (2010). Index-informed jump: **RapidCDC**. Delta/restore after the cut: Palantir, LoopDelta. | Leftover: move a *unique* CDC boundary because a **similar** stored chunk would delta better, without breaking exact-stability. Composition, not a new primitive. |
 | **2. Sketch-affinity routing** | **Yes, essentially.** EMC stateful superchunks, Extreme Binning, **AppDedupe**, **FASR** (IEEE Access 2022), Bloom-filter routing, dCACH. Palantir sketches are for *intra-node* delta, not routing. | Using Palantir-style hierarchical superfeatures *as the routing key* is a small twist on FASR/AppDedupe, not a new problem. Do not treat this as the thesis. |
 | **3. SeqCDC × Chonkers** | **Both exist (2024–2025).** Chonkers (arXiv:2509.11121) is *designed* to sit on proto-chunks from another CDC. SeqCDC/VectorCDC are the fast hashless/SIMD camp. | Implementing SeqCDC then Chonkers merge is following Chonkers’ own layering. Novel only with a new proof or a measured throughput/locality Pareto the papers do not have. |
 | **4. Exact then MinHash then embeddings** | **Yes for text.** Lee et al. 2022; FineWeb/DCLM recipes; production LLM pipelines (exact → MinHash-LSH → optional SemDeDup). Online/incremental: **SEDD/FED**, **FOLD**, **PUFFER** (2025–2026). | A *mixed binary backup + JSONL* gate is an engineering project, not a new algorithm. Do not claim to beat FOLD on Common Crawl. |

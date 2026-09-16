@@ -2,7 +2,7 @@
 
 Research prototype for **novel data deduplication algorithms**, not a self-hosted personal cloud.
 
-The project studies the same problem family as Fu et al., *Distributed Data Deduplication for Big Data: A Survey* (ACM Computing Surveys, 2025, [10.1145/3735508](https://doi.org/10.1145/3735508)): how to partition, fingerprint, index, and (optionally) route data so duplicate and *near-duplicate* content is removed without destroying restore performance. The contribution, if measurements support it, is a **narrow residual** over RapidCDC + Palantir + LoopDelta: allow CDC cuts to *move* using exact/delta/restore scores. See the novelty audit in [docs/research-topics.md](docs/research-topics.md). Several earlier topic ideas are already published.
+The project studies the same problem family as Fu et al., *Distributed Data Deduplication for Big Data: A Survey* (ACM Computing Surveys, 2025, [10.1145/3735508](https://doi.org/10.1145/3735508)): how to partition, fingerprint, index, and (optionally) route data so duplicate and *near-duplicate* content is removed without destroying restore performance. The contribution is **not** a new chunking family. It is a test of **similarity-driven cut migration** (store-informed CDC already exists for *exact* hits: Bimodal, FBC). See [docs/rad-cdc.md](docs/rad-cdc.md).
 
 - Topic menu (ranked): [docs/research-topics.md](docs/research-topics.md)
 - Algorithm design: [docs/rad-cdc.md](docs/rad-cdc.md)

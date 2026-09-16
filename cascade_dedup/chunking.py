@@ -97,9 +97,6 @@ class FastCDC:
     def next_cut(self, data: bytes, start: int) -> int:
         return self._scan(data, start, collect_backups=False)[0]
 
-    def next_cut(self, data: bytes, start: int) -> int:
-        return self._scan(data, start, collect_backups=False)[0]
-
     def next_cut_with_backups(self, data: bytes, start: int, limit: int = 8) -> tuple[int, list[int]]:
         return self._scan(data, start, collect_backups=True, backup_limit=limit)
 

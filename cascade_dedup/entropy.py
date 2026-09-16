@@ -23,6 +23,26 @@ def bigram_entropy(data: bytes) -> float:
     return h
 
 
+def printable_ratio(data: bytes) -> float:
+    if not data:
+        return 0.0
+    return sum(32 <= b < 127 for b in data) / len(data)
+
+
+def max_eq_run_frac(data: bytes) -> float:
+    if not data:
+        return 0.0
+    best = cur = 1
+    for i in range(1, len(data)):
+        if data[i] == data[i - 1]:
+            cur += 1
+            if cur > best:
+                best = cur
+        else:
+            cur = 1
+    return best / len(data)
+
+
 def unigram_entropy(data: bytes) -> float:
     """Shannon entropy of bytes, in bits (0 .. 8)."""
     if not data:

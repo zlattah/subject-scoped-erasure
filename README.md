@@ -92,7 +92,7 @@ Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. D
 
 ## Run the prototype
 
-CDC cuts stay content-only except in RAD-CDC. SeqCDC, adaptive skip, fused fingerprinting, the entropy mux, and the encode-free delta-gain predictor are leftover **knobs**, not a new algorithm family. See [docs/improvements.md](docs/improvements.md).
+CDC cuts stay content-only except in RAD-CDC. SeqCDC, adaptive skip, fused fingerprinting, the entropy mux, the encode-free delta-gain predictor, and the tiny learned SeqCDC skip/Tmax scorer are leftover **knobs**, not a new algorithm family. See [docs/improvements.md](docs/improvements.md).
 
 ```bash
 python3 -m pip install -e ".[dev]"
@@ -102,7 +102,7 @@ python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11
 python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profile random
 ```
 
-`bench` compares FastCDC, FastCDC Tmax-rescue, SeqCDC, SeqCDC Tmax-rescue, adaptive-skip SeqCDC, fused-fingerprint SeqCDC, the entropy mux, and RAD-CDC. Default `--profile mixed` is a structured+random timeline; `--profile random` is the original uniform-byte corpus.
+`bench` compares FastCDC, FastCDC Tmax-rescue, SeqCDC, SeqCDC Tmax-rescue, learned SeqCDC skip/Tmax (`seqcdc-learn`, train seed 101), adaptive-skip SeqCDC, fused-fingerprint SeqCDC, the entropy mux, and RAD-CDC. Default `--profile mixed` is a structured+random timeline; `--profile random` is the original uniform-byte corpus.
 
 On these files the only leftover knob that acts like a **small published-method tweak** is SeqCDC Tmax rescue (weaker cut only when SeqCDC would emit Tmax): mixed seed 0 post-delta 4.324 → 4.648; mixed seed 11 exact 1.177 → 1.203. It costs chunking speed and does not overtake FastCDC. Adaptive skip and FastCDC Tmax rescue do not help. A loss is an allowed result.
 

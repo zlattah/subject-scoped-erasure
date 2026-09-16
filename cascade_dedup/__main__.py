@@ -8,6 +8,7 @@ import sys
 
 from cascade_dedup.corpus import versioned_blobs
 from cascade_dedup.gain import train_gain_predictor
+from cascade_dedup.learn import train_seq_policy
 from cascade_dedup.pipeline import ALL_MODES, ingest_versions
 
 
@@ -43,6 +44,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
     modes = list(ALL_MODES) if args.modes == "all" else _parse_csv(args.modes)
     policies = _parse_csv(args.delta_policy)
     predictor = None
+    seq_policy = None
     if "predict" in policies:
         train = versioned_blobs(
             n_versions=args.versions,
@@ -57,6 +59,21 @@ def cmd_bench(args: argparse.Namespace) -> int:
             f"intercept={predictor.intercept:.3f} threshold={predictor.threshold:.3f}",
             file=sys.stderr,
         )
+    if "seqcdc-learn" in modes:
+        train = versioned_blobs(
+            n_versions=args.versions,
+            base_size=args.base_size,
+            seed=args.train_seed,
+            profile=args.profile,
+        )
+        seq_policy = train_seq_policy(train)
+        print(
+            f"seq-learn: skip={seq_policy.skip_head.source} n={seq_policy.skip_head.n_train} "
+            f"pos={seq_policy.skip_head.n_pos} t={seq_policy.skip_head.threshold:.2f} "
+            f"tmax={seq_policy.tmax_head.source} n={seq_policy.tmax_head.n_train} "
+            f"pos={seq_policy.tmax_head.n_pos} t={seq_policy.tmax_head.threshold:.2f}",
+            file=sys.stderr,
+        )
     rows = []
     for mode in modes:
         for policy in policies:
@@ -66,6 +83,7 @@ def cmd_bench(args: argparse.Namespace) -> int:
                 do_delta=policy != "none",
                 delta_policy=policy,
                 predictor=predictor,
+                seq_policy=seq_policy,
             )
             rows.append(stats.as_row())
     if args.json:
@@ -84,7 +102,12 @@ def main(argv: list[str] | None = None) -> int:
     bench.add_argument("--base-size", type=int, default=512 * 1024)
     bench.add_argument("--seed", type=int, default=0)
     bench.add_argument("--profile", choices=("random", "mixed"), default="mixed")
-    bench.add_argument("--train-seed", type=int, default=101, help="frozen corpus seed for the gain predictor")
+    bench.add_argument(
+        "--train-seed",
+        type=int,
+        default=101,
+        help="frozen corpus seed for the gain predictor and the SeqCDC skip/Tmax scorer",
+    )
     bench.add_argument("--modes", default="all", help="comma-separated modes, or 'all'")
     bench.add_argument(
         "--delta-policy",

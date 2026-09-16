@@ -19,6 +19,7 @@ ALL_MODES = (
     "fastcdc-tmax",
     "seqcdc",
     "seqcdc-tmax",
+    "seqcdc-learn",
     "seqcdc-adapt",
     "radcdc-exact",
     "radcdc",
@@ -47,6 +48,8 @@ class IngestStats:
     mux_fast_cuts: int = 0
     mux_seq_cuts: int = 0
     seq_skips: int = 0
+    learned_rescues: int = 0
+    learned_skip_holds: int = 0
 
     @property
     def dedup_ratio(self) -> float:
@@ -86,6 +89,8 @@ class IngestStats:
             "delta_kept": self.delta_kept,
             "predict_skip": self.predict_skip,
             "seq_skips": self.seq_skips,
+            "learned_rescues": self.learned_rescues,
+            "learned_holds": self.learned_skip_holds,
             "mux_fast": self.mux_fast_cuts,
             "mux_seq": self.mux_seq_cuts,
             "avg_chunk": round(self.avg_chunk, 1),
@@ -98,31 +103,43 @@ def _cuts_for_mode(
     mode: str,
     data: bytes,
     store: ChunkStore,
-) -> tuple[list[int], list[bytes] | None, EntropyMux | None, int]:
+    seq_policy: object | None = None,
+) -> tuple[list[int], list[bytes] | None, EntropyMux | None, int, int, int]:
     if mode == "fastcdc":
-        return FastCDC().cuts(data), None, None, 0
+        return FastCDC().cuts(data), None, None, 0, 0, 0
     if mode == "fastcdc-tmax":
-        return FastCDC(tmax_rescue=True).cuts(data), None, None, 0
+        return FastCDC(tmax_rescue=True).cuts(data), None, None, 0, 0, 0
     if mode == "seqcdc":
         cdc = SeqCDC()
-        return cdc.cuts(data), None, None, cdc.skip_count
+        return cdc.cuts(data), None, None, cdc.skip_count, cdc.rescue_count, cdc.skip_hold_count
     if mode == "seqcdc-tmax":
         cdc = SeqCDC(tmax_rescue=True)
-        return cdc.cuts(data), None, None, cdc.skip_count
+        return cdc.cuts(data), None, None, cdc.skip_count, cdc.rescue_count, cdc.skip_hold_count
+    if mode == "seqcdc-learn":
+        if seq_policy is None:
+            raise ValueError("seqcdc-learn requires a trained seq_policy")
+        cdc = SeqCDC(policy=seq_policy)
+        ends = cdc.cuts(data)
+        holds = cdc.skip_hold_count
+        rescues = cdc.rescue_count
+        if hasattr(seq_policy, "rescues"):
+            rescues = seq_policy.rescues
+            holds = seq_policy.skip_holds
+        return ends, None, None, cdc.skip_count, rescues, holds
     if mode == "seqcdc-adapt":
         cdc = SeqCDC(adaptive_skip=True)
-        return cdc.cuts(data), None, None, cdc.skip_count
+        return cdc.cuts(data), None, None, cdc.skip_count, cdc.rescue_count, cdc.skip_hold_count
     if mode == "seqcdc-fused":
         cdc = SeqCDC(fuse_fingerprint=True)
         ends, fps = cdc.cuts_with_fps(data)
-        return ends, fps, None, cdc.skip_count
+        return ends, fps, None, cdc.skip_count, cdc.rescue_count, cdc.skip_hold_count
     if mode == "mux":
         mux = EntropyMux()
         ends = mux.cuts(data)
-        return ends, None, mux, mux.seq.skip_count
+        return ends, None, mux, mux.seq.skip_count, 0, 0
     if mode in {"radcdc", "radcdc-exact"}:
         chunker = RADCDC(migrate="exact" if mode == "radcdc-exact" else "similar")
-        return chunker.cuts(data, store), None, None, 0
+        return chunker.cuts(data, store), None, None, 0, 0, 0
     raise ValueError(f"unknown mode {mode!r}")
 
 
@@ -134,19 +151,24 @@ def ingest_stream(
     do_delta: bool = True,
     delta_policy: str = "encode",
     predictor: GainPredictor | None = None,
+    seq_policy: object | None = None,
 ) -> tuple[ChunkStore, IngestStats, list[int]]:
     if delta_policy not in {"encode", "predict", "none"}:
         raise ValueError(f"unknown delta_policy {delta_policy!r}")
     store = store or ChunkStore()
     t0 = perf_counter()
     t_chunk = perf_counter()
-    ends, fps, mux, seq_skips = _cuts_for_mode(mode, data, store)
+    ends, fps, mux, seq_skips, rescues, holds = _cuts_for_mode(
+        mode, data, store, seq_policy=seq_policy
+    )
     chunk_elapsed = perf_counter() - t_chunk
     natural_tracker = FastCDC() if mode in {"radcdc", "radcdc-exact"} else None
     pred = predictor or GainPredictor.heuristic()
 
     stats = IngestStats(name=f"{mode}/{delta_policy}" if delta_policy != "encode" else mode)
     stats.seq_skips = seq_skips
+    stats.learned_rescues = rescues
+    stats.learned_skip_holds = holds
     if mux is not None:
         stats.mux_fast_cuts = mux.fast_cuts
         stats.mux_seq_cuts = mux.seq_cuts
@@ -205,6 +227,7 @@ def ingest_versions(
     do_delta: bool = True,
     delta_policy: str = "encode",
     predictor: GainPredictor | None = None,
+    seq_policy: object | None = None,
 ) -> tuple[ChunkStore, IngestStats]:
     store = ChunkStore()
     label = f"{mode}/{delta_policy}" if delta_policy != "encode" else mode
@@ -218,6 +241,7 @@ def ingest_versions(
             do_delta=do_delta,
             delta_policy=delta_policy,
             predictor=predictor,
+            seq_policy=seq_policy,
         )
         acc.logical_bytes += one.logical_bytes
         acc.chunks += one.chunks
@@ -232,6 +256,8 @@ def ingest_versions(
         acc.mux_fast_cuts += one.mux_fast_cuts
         acc.mux_seq_cuts += one.mux_seq_cuts
         acc.seq_skips += one.seq_skips
+        acc.learned_rescues += one.learned_rescues
+        acc.learned_skip_holds += one.learned_skip_holds
         acc.chunk_elapsed_s += one.chunk_elapsed_s
         acc.restore_containers = max(acc.restore_containers, one.restore_containers)
     acc.unique_bytes = store.unique_bytes

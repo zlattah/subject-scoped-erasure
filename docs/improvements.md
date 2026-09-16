@@ -16,6 +16,7 @@ Train the gain predictor on `--train-seed` (default 101). Report test corpora
 | **Fused fingerprint** | blake2s the emitted chunk during the SeqCDC scan (skipped spans included) | Same cuts and same fingerprints as SeqCDC; fewer extra memory passes | Hash-during-CDC exists (IBM dual Rabin). Fusing a *confirm* fingerprint onto *hashless* SeqCDC, including skipped bytes, is the leftover. Python may still lose: `hashlib.update` in the scan can be slower than one shot over the slice. |
 | **Entropy mux** | Min 2-gram entropy over the upcoming Tmin span &lt; 3.5 → FastCDC, else SeqCDC | Beat either CDC alone on mixed-entropy streams | SmartChunker samples *global* CDC parameters. This is a *local* switch. Mixing families can still hurt exact-dedup. |
 | **Encode-free gain predictor** | OLS on (positional sim, Finesse sim, length sim, entropy sim), threshold calibrated on train to keep recall ≥ 0.8 of true pays | Cut `delta_encodes` with little `ratio_with_delta` loss vs encode-then-filter | Palantir/BePro encode then drop. DeepSketch learns *which base*, not *whether to encode*. Train/test seeds are frozen. |
+| **Learned SeqCDC skip/Tmax** | Frozen logistic at SkipTrigger (jump vs hold) and at Tmax-with-weak (rescue vs keep Tmax). Train seed 101; labels from vanilla SeqCDC store oracles | Keep the SeqCDC+Tmax ratio lift without always-rescue, or beat always-rescue by refusing bad weak cuts | DeepSketch learns *which base*. SmartChunker samples CDC *parameters*. Byte-local skip/Tmax scoring on SeqCDC is the leftover. |
 
 ## How to run
 

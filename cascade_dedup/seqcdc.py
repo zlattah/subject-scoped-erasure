@@ -10,8 +10,8 @@ Leftover knobs (not in the paper):
 - ``fuse_fingerprint``: blake2s the emitted chunk during the scan (including
   skipped spans) so ingest does not re-read the chunk to fingerprint it.
 - ``tmax_rescue``: if no SeqLength run appears before Tmax, keep the weak
-  (SeqLength-2) cut closest to Tavg. This is *not* Chonkers; it only spends extra
-  cut choice on spans that would otherwise be a hard Tmax emit.
+  (SeqLength-2) cut closest to Tavg.
+- ``policy``: optional learned skip / Tmax scorer (``cascade_dedup.learn``).
 """
 
 from __future__ import annotations
@@ -53,6 +53,7 @@ class SeqCDC:
         adaptive_skip: bool | None = None,
         fuse_fingerprint: bool | None = None,
         tmax_rescue: bool | None = None,
+        policy: object | None = None,
     ) -> None:
         self.params = params or CDCParams()
         seq = seq or SeqParams()
@@ -70,11 +71,14 @@ class SeqCDC:
                 entropy_window=seq.entropy_window,
             )
         self.seq = seq
+        self.policy = policy
         if self.seq.seq_length < 1:
             raise ValueError("seq_length must be >= 1")
         if self.seq.skip_min < 1 or self.seq.skip_max < self.seq.skip_min:
             raise ValueError("require 0 < skip_min <= skip_max")
         self.skip_count = 0
+        self.rescue_count = 0
+        self.skip_hold_count = 0
 
     def next_cut(self, data: bytes, start: int) -> int:
         return self._scan(data, start)[0]
@@ -87,6 +91,10 @@ class SeqCDC:
 
     def cuts(self, data: bytes) -> list[int]:
         self.skip_count = 0
+        self.rescue_count = 0
+        self.skip_hold_count = 0
+        if self.policy is not None and hasattr(self.policy, "reset_counts"):
+            self.policy.reset_counts()
         ends: list[int] = []
         start = 0
         n = len(data)
@@ -98,6 +106,10 @@ class SeqCDC:
 
     def cuts_with_fps(self, data: bytes) -> tuple[list[int], list[bytes]]:
         self.skip_count = 0
+        self.rescue_count = 0
+        self.skip_hold_count = 0
+        if self.policy is not None and hasattr(self.policy, "reset_counts"):
+            self.policy.reset_counts()
         ends: list[int] = []
         fps: list[bytes] = []
         start = 0
@@ -162,6 +174,7 @@ class SeqCDC:
 
         opposing = 0
         run = 0
+        skips_this = 0
         weak_len = max(2, s.seq_length - 2)
         weak_best: int | None = None
         weak_dist = 10**9
@@ -181,7 +194,7 @@ class SeqCDC:
                 opposing = 0
                 # Exclusive end is i+1 so the completing byte is inside the chunk.
                 end = i + 1
-                if s.tmax_rescue and run >= weak_len and end >= min_end:
+                if run >= weak_len and end >= min_end:
                     dist = abs(end - avg_pos)
                     if dist < weak_dist:
                         weak_dist = dist
@@ -193,7 +206,16 @@ class SeqCDC:
                 opposing += 1
                 if opposing >= s.skip_trigger:
                     skip = self._adaptive_skip_size(data, start, i) if s.adaptive_skip else s.skip_size
+                    if self.policy is not None:
+                        skip = self.policy.jump_size(data, start, i, skips_this, skip)
+                    if skip <= 0:
+                        self.skip_hold_count += 1
+                        opposing = 0
+                        run = 0
+                        i += 1
+                        continue
                     self.skip_count += 1
+                    skips_this += 1
                     i += skip
                     opposing = 0
                     run = 0
@@ -205,6 +227,13 @@ class SeqCDC:
             if hasher is not None and i - hashed >= 256:
                 catch_up(i)
 
-        if s.tmax_rescue and weak_best is not None:
-            return finish(min(weak_best, max_end))
+        if weak_best is not None:
+            take_weak = False
+            if self.policy is not None:
+                take_weak = bool(self.policy.use_weak(data, start, weak_best, max_end, skips_this))
+            elif s.tmax_rescue:
+                take_weak = True
+            if take_weak:
+                self.rescue_count += 1
+                return finish(min(weak_best, max_end))
         return finish(max_end)

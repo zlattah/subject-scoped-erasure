@@ -1,75 +1,86 @@
 # Canonical access-unit dedup for lossless video remuxes
 
-Research prototype for **one idea**: backup should hash **normalized compressed frames**, not file bytes, when the same encode is stored in several containers.
-
-This is **not** a self-hosted cloud, **not** a new FastCDC/SeqCDC family, and **not** RAD-CDC. The thesis claim is:
-
-> Two files that are lossless remuxes of the same H.264/AAC encode (MP4, faststart MP4, MKV, MPEG-TS, fragmented MP4) should share stored media. Opaque CDC does not; **canonical access-unit hashing** does.
+A laptop-scale experiment: backup of remuxed H.264/AAC video should share **the same compressed frames**, even when those frames sit in different containers.
 
 - Method: [docs/method.md](docs/method.md)
-- Related work (honest): [docs/related-work.md](docs/related-work.md)
+- Related work: [docs/related-work.md](docs/related-work.md)
 - Evaluation: [docs/evaluation.md](docs/evaluation.md)
 
 ---
 
-## The scenario (only this)
+## Problem
 
-A **lossless remux / re-export** keeps the same compressed packets and changes the box: `ffmpeg -c copy`, faststart, “save as MKV,” HLS/CMAF fragments of the same encode, some cloud/messenger re-wraps.
+Deduplicating video files by hashing **opaque bytes** (CDC such as FastCDC) or **packets as stored in one container** (MP4 samples, Matroska blocks, MPEG-TS PES) fails on a common, lossless change: **remux**.
 
-It does **not** help a **transcode** (new resolution, CRF, burned-in subs). Those packets are different.
+A remux (`ffmpeg -c copy`, faststart, “save as MKV,” HLS/CMAF fragments of one encode) **does not re-encode**. The H.264 NALs and AAC frames stay the same. Only the box changes: ISO BMFF, faststart MP4, fragmented MP4, Matroska, MPEG-TS.
+
+That box change is enough to break byte-oriented backup:
+
+| What stays the same | What changes |
+|---|---|
+| Compressed pictures (VCL NALs) and AAC frames | File headers (`moov`, EBML, PAT/PMT) |
+| | NAL framing: MP4 **AVCC length prefixes** vs MPEG-TS **Annex-B start codes** |
+| | AAC wrapping: raw frames in MP4/MKV vs **ADTS** in MPEG-TS |
+| | Where SPS/PPS live: `avcC` / CodecPrivate vs in-band |
+| | Optional AUD (type 9) and filler (type 12) NALs muxers insert or drop |
+
+So two remuxes of one encode are **the same media** and **different files**. FastCDC almost never matches them. Hashing in-container samples can share ISO-BMFF clones that keep the same `mdat` layout, but still misses MKV and MPEG-TS, because those packets are the same NALs with different wrappers.
+
+**This experiment’s improvement:** parse each container, strip that wrapper, and hash **canonical access units** (framing-free NALs and AAC frames). Remuxes of one encode then share stored media. A transcode (new encode) does not — those packets are different, and the method is not meant to catch them.
 
 ---
 
-## Core idea (one paragraph)
+## Method (this experiment)
 
-Parse the container, pull video and audio packets, strip length prefixes / Annex-B start codes / ADTS headers, drop AUD and filler NALs, hash the remaining NALs and AAC frames (plus SPS/PPS from `avcC`). Store each unique unit once. Each file keeps container leftover (headers, index) plus a list of unit ids. Compare against **FastCDC** (opaque bytes) and **container-sample** (Dewakar-style samples/blocks/PES as stored).
+1. Sniff MP4 / fMP4 / MKV / MPEG-TS.
+2. Extract video and audio packets.
+3. Canonicalize: split AVCC or Annex-B; drop AUD and filler; keep VCL, SPS, PPS, SEI; add SPS/PPS from `avcC` when they are out-of-band; strip ADTS from AAC.
+4. Fingerprint each unit (blake2s-128) into an exact chunk store. Store leftover container bytes per file.
+
+Baselines in the same ingest path: **FastCDC** on the whole file, and **container-sample** (packets hashed as stored, Dewakar-style).
 
 ---
 
-## What is actually new
+## Related work (for this problem only)
 
-**Dewakar et al., HotStorage 2015** already hash MP4/3GPP **samples in that file**. They left **across file formats** as future work. **mkvdup** (software, not a paper) already matches elementary-stream packets between an MKV and a DVD/Blu-ray ISO.
+**Dewakar et al., HotStorage 2015** hash MP4/3GPP samples *inside one file*. They named matching **across file formats** as future work. **mkvdup** matches elementary-stream packets between an MKV and a DVD/Blu-ray ISO (software, not a paper).
 
-This project’s idea is that leftover: **peer remuxes** (no master disc), with an explicit **canonical** unit (framing stripped) and a backup-style comparison to FastCDC and in-file samples. Do not claim a new rolling hash or visual copy detection (ViDeDup, Maze, Content ID).
+This prototype is that leftover on **peer remuxes** (no master disc): an explicit canonical unit, and a backup-style comparison to FastCDC and in-file samples. It is not a new rolling hash and not perceptual copy detection.
 
 ---
 
 ## Objectives
 
 1. Specify canonical access-unit identity for H.264 + AAC in MP4 / fMP4 / MKV / MPEG-TS.
-2. Implement it, plus FastCDC and Dewakar-style container-sample baselines.
-3. Measure unique bytes and ratio on lossless remux clones; show transcodes do **not** match.
-4. (Next) Repeat on real remuxes (phone re-export, `-c copy` rips, HLS vs MP4 of one encode) and a restore path that rebuilds a playable file.
-5. Write the report so a loss on transcode or same-`mdat` MP4 clones is expected, not hidden.
+2. Implement it plus FastCDC and container-sample baselines.
+3. Measure unique bytes and ratio on lossless remux clones; show transcodes do not match.
+4. (Next) Repeat on real remuxes and a restore path that rebuilds a playable file.
 
 ---
 
 ## Scope
 
-**In scope**
+**In**
 
-- Format-aware **lossless** video/audio unit hashing for remux-stable backup.
+- Format-aware lossless unit hashing so remuxes of one encode share storage.
 - Baselines: FastCDC, in-container samples.
-- Synthetic ffmpeg remux corpus now; real remux corpora next.
-- Honest related work: Dewakar 2015, mkvdup, ViDeDup (different problem).
+- Synthetic ffmpeg remux corpus now; real remuxes next.
 
-**Out of scope**
+**Out**
 
-- Self-hosted cloud, iPhone clients, “parallel vs serial hashing.”
-- A new CDC algorithm (SeqCDC knobs, RAD-CDC, learned skip/Tmax).
-- Near-duplicate **after decode** (re-encodes, crops, overlays).
-- Competing with YouTube Content ID.
-- mkvdup’s disc-rip FUSE product (cite it; do not reimplement ISO matching as the thesis).
+- Near-duplicates after decode (re-encodes, crops, overlays).
+- HEVC/AV1 as a first-class path (claim is H.264 + AAC).
+- Bit-identical restore of the original container (not implemented yet).
 
 ---
 
-## Stack (prototype)
+## Stack
 
 | Layer | Choice |
 |---|---|
 | Language | Python 3.11+ |
 | Fingerprints | blake2s-128 |
-| Demux | In-repo MP4 / MKV / MPEG-TS parsers (no extra pip deps) |
+| Demux | In-repo MP4 / MKV / MPEG-TS parsers |
 | Corpus | ffmpeg `libx264` + `aac`, then `-c copy` remuxes |
 | Eval | `python -m cascade_dedup bench` |
 
@@ -77,22 +88,21 @@ This project’s idea is that leftover: **peer remuxes** (no master disc), with 
 
 ## Success criteria
 
-- On lossless remux clones, canonical-au unique bytes **beat FastCDC** by a large factor and **beat container-sample** by matching MKV/TS to MP4 NALs.
-- On a transcode of the same clip, overlap is ~none (the method is remux identity, not perceptual).
-- The write-up names Dewakar’s future work and mkvdup so the contribution is not overclaimed.
-- Negative results are allowed.
+- On lossless remux clones, canonical-au unique bytes beat FastCDC by a large factor, and beat container-sample by matching MKV/TS to MP4 NALs.
+- On a transcode of the same clip, overlap is ~none.
+- Write-up names Dewakar’s cross-format future work and mkvdup.
 
 ---
 
-## Suggested schedule
+## Schedule
 
 | Phase | Focus |
 |---|---|
-| A | Freeze the claim and related work (Dewakar, mkvdup, FastCDC) |
+| A | Claim and related work (Dewakar, mkvdup, FastCDC) |
 | B | Parsers + canonical units + remux corpus (this repo) |
 | C | Bench vs FastCDC and container-sample; transcode negative test |
 | D | Real remux dataset + restore-to-playable |
-| E | Thesis write-up: scenario, method, limits |
+| E | Write-up: scenario, method, limits |
 
 ---
 

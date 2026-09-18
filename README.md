@@ -1,36 +1,46 @@
-# CascadeDedup / RAD-CDC
+# Canonical access-unit dedup for lossless video remuxes
 
-Research prototype for **novel data deduplication algorithms**, not a self-hosted personal cloud.
+Research prototype for **one idea**: backup should hash **normalized compressed frames**, not file bytes, when the same encode is stored in several containers.
 
-The project studies the same problem family as Fu et al., *Distributed Data Deduplication for Big Data: A Survey* (ACM Computing Surveys, 2025, [10.1145/3735508](https://doi.org/10.1145/3735508)): how to partition, fingerprint, index, and (optionally) route data so duplicate and *near-duplicate* content is removed without destroying restore performance. The contribution is **not** a new chunking family. It is a test of **similarity-driven cut migration** (store-informed CDC already exists for *exact* hits: Bimodal, FBC). See [docs/rad-cdc.md](docs/rad-cdc.md).
+This is **not** a self-hosted cloud, **not** a new FastCDC/SeqCDC family, and **not** RAD-CDC. The thesis claim is:
 
-- Topic menu (ranked): [docs/research-topics.md](docs/research-topics.md)
-- Algorithm design: [docs/rad-cdc.md](docs/rad-cdc.md)
+> Two files that are lossless remuxes of the same H.264/AAC encode (MP4, faststart MP4, MKV, MPEG-TS, fragmented MP4) should share stored media. Opaque CDC does not; **canonical access-unit hashing** does.
+
+- Method: [docs/method.md](docs/method.md)
+- Related work (honest): [docs/related-work.md](docs/related-work.md)
+- Evaluation: [docs/evaluation.md](docs/evaluation.md)
 
 ---
 
-## Why this is not the old project
+## The scenario (only this)
 
-The previous plan (“Parallel Deduplication for Self-Hosted Cloud Storage”) was a product demo: MacBook + iPhone uploads, SHA-256 whole-file hashing, multiprocessing vs serial, SQLite, dashboard. That does not engage this literature. The survey’s open problems are **adaptive partitioning, resemblance/delta, restore vs ratio, similarity-aware routing, and AI-corpus dedup** — not LAN file upload.
+A **lossless remux / re-export** keeps the same compressed packets and changes the box: `ffmpeg -c copy`, faststart, “save as MKV,” HLS/CMAF fragments of the same encode, some cloud/messenger re-wraps.
 
-What we keep from the old plan: Python, parallel CPU hashing, a measurement harness, and a simple UI *if* it is used to inspect algorithm metrics (chunk-size histograms, ratio, restore estimate). What we drop: private-cloud hosting, iPhone clients, and “parallel vs serial” as the main scientific claim.
+It does **not** help a **transcode** (new resolution, CRF, burned-in subs). Those packets are different.
 
 ---
 
 ## Core idea (one paragraph)
 
-Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. Delta compression and restore rewriting run later, as separate stages. **RAD-CDC** generates a few legal content-defined candidate cuts, then chooses the cut that best scores expected exact-hash hits, expected delta savings, and predicted restore fragmentation. Unique chunks may be stored as deltas against a sketch-matched base. An optional last gate applies MinHash-style fuzzy dedup for text/JSONL. A simulator can add sketch-affinity *routing* so the work still addresses the survey’s distributed setting without a real cluster.
+Parse the container, pull video and audio packets, strip length prefixes / Annex-B start codes / ADTS headers, drop AUD and filler NALs, hash the remaining NALs and AAC frames (plus SPS/PPS from `avcC`). Store each unique unit once. Each file keeps container leftover (headers, index) plus a list of unit ids. Compare against **FastCDC** (opaque bytes) and **container-sample** (Dewakar-style samples/blocks/PES as stored).
+
+---
+
+## What is actually new
+
+**Dewakar et al., HotStorage 2015** already hash MP4/3GPP **samples in that file**. They left **across file formats** as future work. **mkvdup** (software, not a paper) already matches elementary-stream packets between an MKV and a DVD/Blu-ray ISO.
+
+This project’s idea is that leftover: **peer remuxes** (no master disc), with an explicit **canonical** unit (framing stripped) and a backup-style comparison to FastCDC and in-file samples. Do not claim a new rolling hash or visual copy detection (ViDeDup, Maze, Content ID).
 
 ---
 
 ## Objectives
 
-1. Implement baselines: whole-file, fixed-size, FastCDC (and hashless CDC if time).
-2. Implement **RAD-CDC** with a dual exact/sketch index and container packing.
-3. Measure dedup ratio, post-delta ratio, restore cost, throughput, metadata overhead on public versioned datasets.
-4. (Stretch) Simulate similarity-aware routing across N nodes.
-5. (Stretch) Text/JSONL fuzzy gate for mixed storage+AI data.
-6. Write an evaluation report that can *falsify* the algorithm (when it loses, say so).
+1. Specify canonical access-unit identity for H.264 + AAC in MP4 / fMP4 / MKV / MPEG-TS.
+2. Implement it, plus FastCDC and Dewakar-style container-sample baselines.
+3. Measure unique bytes and ratio on lossless remux clones; show transcodes do **not** match.
+4. (Next) Repeat on real remuxes (phone re-export, `-c copy` rips, HLS vs MP4 of one encode) and a restore path that rebuilds a playable file.
+5. Write the report so a loss on transcode or same-`mdat` MP4 clones is expected, not hidden.
 
 ---
 
@@ -38,19 +48,18 @@ Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. D
 
 **In scope**
 
-- Chunk-level and CDC-based deduplication (the thing the old plan listed as out of scope).
-- Near-duplicate / delta compression as a first-class metric.
-- Restore-cost modeling via containers.
-- Parallel fingerprinting as an implementation detail, not the thesis.
-**Datasets:** tens of GB of public versioned archives on the MacBook, not TB-class LoopDelta/FastCDC traces. See the hardware budget in [docs/research-topics.md](docs/research-topics.md).
+- Format-aware **lossless** video/audio unit hashing for remux-stable backup.
+- Baselines: FastCDC, in-container samples.
+- Synthetic ffmpeg remux corpus now; real remux corpora next.
+- Honest related work: Dewakar 2015, mkvdup, ViDeDup (different problem).
 
 **Out of scope**
 
-- Self-hosted cloud, mobile clients, multi-user auth.
-- Silent deletion of user files.
-- Production Ceph/HYDRAstor integration.
-- SGX/blockchain secure dedup as the main topic.
-- CXL hardware.
+- Self-hosted cloud, iPhone clients, “parallel vs serial hashing.”
+- A new CDC algorithm (SeqCDC knobs, RAD-CDC, learned skip/Tmax).
+- Near-duplicate **after decode** (re-encodes, crops, overlays).
+- Competing with YouTube Content ID.
+- mkvdup’s disc-rip FUSE product (cite it; do not reimplement ISO matching as the thesis).
 
 ---
 
@@ -58,21 +67,20 @@ Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. D
 
 | Layer | Choice |
 |---|---|
-| Language | Python (NumPy; optional Numba later) |
-| Fingerprints | xxHash / BLAKE3 for candidates; SHA-256 confirm |
-| Delta | zstd or a small byte-delta |
-| Metadata | SQLite or a simple on-disk hash map |
-| Parallelism | `ProcessPoolExecutor` for hashing/chunking files |
-| Eval | scripts + tables/plots in the report |
+| Language | Python 3.11+ |
+| Fingerprints | blake2s-128 |
+| Demux | In-repo MP4 / MKV / MPEG-TS parsers (no extra pip deps) |
+| Corpus | ffmpeg `libx264` + `aac`, then `-c copy` remuxes |
+| Eval | `python -m cascade_dedup bench` |
 
 ---
 
 ## Success criteria
 
-- RAD-CDC is specified, implemented, and compared to FastCDC on at least two public datasets.
-- Metrics include **ratio and restore**, not only wall-clock vs serial hashing.
-- The report maps results back to Fu et al.’s taxonomy (partitioning, fingerprinting, index, restore; routing if simulated).
-- Negative results are allowed: a well-measured loss is better than a dashboard that only shows speedup.
+- On lossless remux clones, canonical-au unique bytes **beat FastCDC** by a large factor and **beat container-sample** by matching MKV/TS to MP4 NALs.
+- On a transcode of the same clip, overlap is ~none (the method is remux identity, not perceptual).
+- The write-up names Dewakar’s future work and mkvdup so the contribution is not overclaimed.
+- Negative results are allowed.
 
 ---
 
@@ -80,35 +88,22 @@ Modern CDC (FastCDC, SeqCDC, Chonkers) picks cut points from local bytes only. D
 
 | Phase | Focus |
 |---|---|
-| A | Read survey §2–3 and §6; freeze topic (RAD-CDC default) |
-| B | Dataset scripts + baselines (fixed, FastCDC) |
-| C | Containers + exact index + restore-cost metric |
-| D | RAD scorer + sketch cache + delta |
-| E | Parallel throughput + ablations (weights, C candidates) |
-| F | Optional: routing simulator and/or text fuzzy gate |
-| G | Evaluation report and plots |
+| A | Freeze the claim and related work (Dewakar, mkvdup, FastCDC) |
+| B | Parsers + canonical units + remux corpus (this repo) |
+| C | Bench vs FastCDC and container-sample; transcode negative test |
+| D | Real remux dataset + restore-to-playable |
+| E | Thesis write-up: scenario, method, limits |
 
 ---
 
-## Run the prototype
+## Run
 
-CDC cuts stay content-only except in RAD-CDC. SeqCDC, adaptive skip, fused fingerprinting, the entropy mux, the encode-free delta-gain predictor, and the tiny learned SeqCDC skip/Tmax scorer are leftover **knobs**, not a new algorithm family. See [docs/improvements.md](docs/improvements.md).
+ffmpeg with `libx264` and `aac` is required for the remux corpus.
 
 ```bash
 python3 -m pip install -e ".[dev]"
 python3 -m pytest
-python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0
-python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11
-python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profile random
-python3 -m cascade_dedup video-bench
+python3 -m cascade_dedup bench
 ```
 
-`bench` compares FastCDC, FastCDC Tmax-rescue, SeqCDC, SeqCDC Tmax-rescue, learned SeqCDC skip/Tmax (`seqcdc-learn`, train seed 101), adaptive-skip SeqCDC, fused-fingerprint SeqCDC, the entropy mux, and RAD-CDC. Default `--profile mixed` is a structured+random timeline; `--profile random` is the original uniform-byte corpus.
-
-On these files the only leftover knob that acts like a **small published-method tweak** is SeqCDC Tmax rescue (weaker cut only when SeqCDC would emit Tmax): mixed seed 0 post-delta 4.324 → 4.648; mixed seed 11 exact 1.177 → 1.203. It costs chunking speed and does not overtake FastCDC. Adaptive skip, FastCDC Tmax rescue, and the learned SeqCDC skip/Tmax scorer do not help: `seqcdc-learn` copies always-rescue on the mixed 6×512 KiB train (no skip-hold labels; too few Tmax rows) and a larger-train Tmax logistic under-rescues and loses that lift. A loss is an allowed result.
-
-`video-bench` is a separate format-aware path: canonical H.264/AAC units on lossless remux clones. On two short lavfi clips × five remuxes, unique bytes are **152.7 KiB** (ratio **5.556**) versus FastCDC 699.8 KiB (1.212) and Dewakar-style samples 250.0 KiB (3.394). Re-encodes do not match. See [docs/video-au.md](docs/video-au.md).
-
-- Cut migration: [docs/rad-cdc.md](docs/rad-cdc.md)
-- Leftover knobs and measurements: [docs/improvements.md](docs/improvements.md)
-- Remux-stable video units: [docs/video-au.md](docs/video-au.md)
+On two 4 s lavfi clips × five remuxes (848.5 KiB logical): canonical-au unique **152.7 KiB** (ratio **5.556**) vs FastCDC **699.8 KiB** (1.212) vs container-sample **250.0 KiB** (3.394). Tables: [docs/evaluation.md](docs/evaluation.md).

@@ -1,13 +1,4 @@
-"""Gear-hash FastCDC (content-only cuts).
-
-This follows the FastCDC normalized-chunking pattern (Xia et al., ATC 2016):
-Gear rolling hash, skip judgment until Tmin, use a harder mask until Tavg and
-a softer mask until Tmax.
-
-``tmax_rescue`` is a small extra: if that process would emit a hard Tmax chunk,
-cut instead at the easy-mask hit closest to Tavg. Cuts that already matched a
-mask are unchanged.
-"""
+"""Gear-hash FastCDC (Xia et al., ATC 2016) — opaque-byte baseline for remux dedup."""
 
 from __future__ import annotations
 

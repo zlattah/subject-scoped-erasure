@@ -22,6 +22,21 @@ def read_vint(data: bytes, i: int) -> tuple[int, int]:
     return value, length
 
 
+def read_id(data: bytes, i: int) -> tuple[int, int]:
+    """Element IDs keep the VINT length bit (Matroska / EBML)."""
+    if i >= len(data):
+        raise ValueError("truncated id")
+    b0 = data[i]
+    mask = 0x80
+    length = 1
+    while length <= 4 and (b0 & mask) == 0:
+        mask >>= 1
+        length += 1
+    if length > 4 or i + length > len(data):
+        raise ValueError("bad id")
+    return int.from_bytes(data[i : i + length], "big"), length
+
+
 @dataclass
 class MkvBlock:
     track: int
@@ -54,7 +69,7 @@ def _walk(data: bytes, start: int, end: int):
     i = start
     while i + 1 < end:
         try:
-            eid, n1 = read_vint(data, i)
+            eid, n1 = read_id(data, i)
             size, n2 = read_vint(data, i + n1)
         except ValueError:
             break

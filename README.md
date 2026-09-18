@@ -107,6 +107,8 @@ python3 -m cascade_dedup video-bench
 
 On these files the only leftover knob that acts like a **small published-method tweak** is SeqCDC Tmax rescue (weaker cut only when SeqCDC would emit Tmax): mixed seed 0 post-delta 4.324 → 4.648; mixed seed 11 exact 1.177 → 1.203. It costs chunking speed and does not overtake FastCDC. Adaptive skip, FastCDC Tmax rescue, and the learned SeqCDC skip/Tmax scorer do not help: `seqcdc-learn` copies always-rescue on the mixed 6×512 KiB train (no skip-hold labels; too few Tmax rows) and a larger-train Tmax logistic under-rescues and loses that lift. A loss is an allowed result.
 
+`video-bench` is a separate format-aware path: canonical H.264/AAC units on lossless remux clones. On two short lavfi clips × five remuxes, unique bytes are **152.7 KiB** (ratio **5.556**) versus FastCDC 699.8 KiB (1.212) and Dewakar-style samples 250.0 KiB (3.394). Re-encodes do not match. See [docs/video-au.md](docs/video-au.md).
+
 - Cut migration: [docs/rad-cdc.md](docs/rad-cdc.md)
 - Leftover knobs and measurements: [docs/improvements.md](docs/improvements.md)
 - Remux-stable video units: [docs/video-au.md](docs/video-au.md)

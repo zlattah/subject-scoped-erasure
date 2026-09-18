@@ -100,6 +100,7 @@ python3 -m pytest
 python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0
 python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 11
 python3 -m cascade_dedup bench --versions 6 --base-size 524288 --seed 0 --profile random
+python3 -m cascade_dedup video-bench
 ```
 
 `bench` compares FastCDC, FastCDC Tmax-rescue, SeqCDC, SeqCDC Tmax-rescue, learned SeqCDC skip/Tmax (`seqcdc-learn`, train seed 101), adaptive-skip SeqCDC, fused-fingerprint SeqCDC, the entropy mux, and RAD-CDC. Default `--profile mixed` is a structured+random timeline; `--profile random` is the original uniform-byte corpus.
@@ -108,3 +109,4 @@ On these files the only leftover knob that acts like a **small published-method 
 
 - Cut migration: [docs/rad-cdc.md](docs/rad-cdc.md)
 - Leftover knobs and measurements: [docs/improvements.md](docs/improvements.md)
+- Remux-stable video units: [docs/video-au.md](docs/video-au.md)

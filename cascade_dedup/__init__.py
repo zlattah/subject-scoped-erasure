@@ -8,6 +8,7 @@ from cascade_dedup.pipeline import IngestStats, ingest_stream, ingest_versions
 from cascade_dedup.radcdc import RADCDC
 from cascade_dedup.seqcdc import SeqCDC
 from cascade_dedup.store import ChunkStore
+from cascade_dedup.video import ingest_video_files
 
 __all__ = [
     "ChunkStore",
@@ -20,6 +21,7 @@ __all__ = [
     "SeqCDC",
     "ingest_stream",
     "ingest_versions",
+    "ingest_video_files",
     "train_gain_predictor",
     "train_seq_policy",
 ]

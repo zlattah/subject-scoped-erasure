@@ -4,6 +4,8 @@ Research plan for **one problem**: a backup store that shares identical bytes ca
 
 This project is only that conflict. It is not a new chunking algorithm.
 
+**Core** is a labeled two-subject store (unique / identical / mixed blobs). **PhD layer** adds (1) mixed **containers** — one PST/mbox and one photo library with two subjects, (2) **holds vs erase**, and (3) a **real multi-tenant trace**.
+
 - Definitions and design: [docs/method.md](docs/method.md)
 - Related work: [docs/related-work.md](docs/related-work.md)
 - Planned evaluation: [docs/evaluation.md](docs/evaluation.md)
@@ -32,9 +34,11 @@ These terms are used with these meanings only.
 
 **Data subject.** The natural person whose personal data the store must be able to forget. In this project a subject is an identifier `S` (for example `alice`). Erase is `erase(S)`, not “delete file F” and not “delete snapshot V.”
 
-**Personal data.** Information that relates to an identified or identifiable subject (GDPR-style). A public ISO or a shared app binary is typically **not** personal data. A mailbox, photo of a person, or HR row **is**. This project does not implement a legal classifier; the prototype **labels** files or regions as `unique` / `identical` / `mixed` so the policy can be tested.
+**Personal data.** Information that relates to an identified or identifiable subject (GDPR-style). A public ISO or a shared app binary is typically **not** personal data. A mailbox, photo of a person, or HR row **is**. The core prototype **labels** files or regions as `unique` / `identical` / `mixed`. The PhD layer parses **real mixed containers** (below) instead of only trusting a whole-file label.
 
 **Controller / operator.** Whoever runs the backup store and must perform `erase(S)` and still restore everyone else.
+
+**Tenant.** A billing or isolation boundary that may contain many subjects (a company, a family iCloud account, one backup client). Cross-user share can happen **inside** a tenant (Alice and Bob at the same firm) or **across** tenants (two firms both backup the same installer). A **multi-tenant trace** records who ingested what, and when, across tenants.
 
 ### How a deduplicated backup is laid out
 
@@ -60,7 +64,14 @@ These terms are used with these meanings only.
 
 **Identical (shareable).** The same bytes appear in two subjects’ backups, and the content is **not** treated as either subject’s exclusive personal data (for example a shared installer). After `erase(Alice)`, Bob must still restore; Alice must not restore from *her* recipes. The physical chunk may stay.
 
-**Mixed.** One stored region contains personal data of **more than one** subject (family photo, shared mailbox, spreadsheet with two employees). After `erase(Alice)`, Alice’s contribution must be unrecoverable, and Bob must still get a restorable object that no longer yields Alice. You cannot keep one shared ciphertext and satisfy both unless you rewrite or split the object.
+**Mixed (labeled blob).** One stored region is tagged as containing personal data of **more than one** subject. After `erase(Alice)`, Alice’s contribution must be unrecoverable, and Bob must still get a restorable object that no longer yields Alice. You cannot keep one shared ciphertext and satisfy both unless you rewrite or split the object. The core prototype uses this label.
+
+**Mixed container (PhD).** A *real file or library* that interleaves more than one subject, so the interesting unit is **inside** the file, not the file name.
+
+- **Shared mailbox / one PST (or mbox).** Outlook `.pst` / `.ost` or an mbox is one backup object. Messages, attachments, and contacts belong to different subjects (Alice sent, Bob received, Carol is in the thread). Chunks may be Alice-only, Bob-only, or still mixed (one MIME part with both names; one attachment both were sent).
+- **One photo library with two subjects.** A single library (Apple Photos-style package, a shared album zip, or a directory plus sidecar DB) holds photos of Alice, of Bob, and of **both** (group shots). Erase must drop Alice’s items and Alice-in-group-shots without deleting Bob’s solo photos. Thumbnails and the library DB are themselves mixed metadata.
+
+For these, ingest must **parse** the container, label *inner* objects (messages, attachments, photos), and apply unique / identical / mixed **per inner object**. Whole-file OR-wrap of the PST is the leak the PhD chapter exists to close.
 
 ### Delete, erase, and “gone”
 
@@ -94,9 +105,21 @@ These terms are used with these meanings only.
 
 **Immutable snapshot / WORM / vault.** A retained backup must stay bit-for-bit restorable and must not be editable by ransomware or by a routine “please drop Alice from Tuesday.” Typical product goal: nobody (including a compromised admin) can encrypt or delete history.
 
-**Legal hold / retention.** A snapshot or record that **must not** be erased yet (litigation, statutory retention). `erase(S)` may have to wait, or apply only after the hold lifts. The key store must not shred a key that a hold still requires.
+**Legal hold / retention.** A pin on a snapshot, file, tenant, or subject that **forbids shred** until the pin lifts (litigation, statutory keep, tax). Holds are first-class in the PhD layer, not a footnote.
 
-**Restore.** Rebuild files from a snapshot’s recipes plus chunks plus keys. After `erase(S)`, restore(`S`, anything) must fail for `S`’s personal data; restore(`T`, old snapshot) must still succeed for `T ≠ S`.
+**Hold vs erase.** `erase(S)` and a hold can target overlapping bytes:
+
+| Situation | Required outcome |
+|---|---|
+| Hold on Alice’s own snapshot, then `erase(Alice)` | **Defer.** Do not shred `s_Alice` or Alice-only DEKs until the hold lifts. Queue a **deferred erase**. |
+| Hold on Bob’s snapshot that **OR-shares** an identical installer with Alice, then `erase(Alice)` | Shred Alice’s wrap and recipes. **Do not** shred `k` while Bob’s hold (or Bob) still needs it. |
+| Hold on a **mixed** PST / photo library that contains Alice and Bob, then `erase(Alice)` | Cannot rewrite the held snapshot. Keep the mixed ciphertext while the hold is live (Alice is **not** yet unrecoverable from that snapshot). When the hold lifts, run deferred erase: copy-out Bob’s inner objects, then shred Alice’s remaining wraps. |
+| `erase(Alice)` completes, then a hold is requested on Alice | Too late for those keys if already shredded. Hold only applies to data still recoverable. |
+| Two holds (regulator keep vs subject erase) | Erase waits; the plan records **why** and **until when**. Restore of a held mixed snapshot may still yield Alice — that is the documented cost of the hold, not a silent leak. |
+
+**Deferred erase.** Work queued by `erase(S)` that cannot shred yet because a hold still references those keys or snapshots. When the last blocking hold lifts, the queue runs automatically: same rules as immediate erase.
+
+**Restore.** Rebuild files from a snapshot’s recipes plus chunks plus keys. After `erase(S)` and after any deferred erase has run, restore(`S`, anything) must fail for `S`’s personal data; restore(`T`, old snapshot) must still succeed for `T ≠ S` unless that snapshot was mixed and marked unrestorable. While a hold blocks erase, restore of the held object may still contain `S` — the API must say so.
 
 ### What this project is not
 
@@ -132,6 +155,9 @@ On **mixed** data, you cannot share one `{chunk}_k` and also forget Alice while 
 4. If a chunk’s owner set is empty → shred `k` (and GC when allowed).
 5. If a chunk is **mixed** and `S` was an owner → **copy-out** remaining subjects to a new object that no longer contains `S` (or refuse and report that immutability forbids in-place rewrite of old snapshots). New snapshots of remaining subjects use the copy-out; old snapshots either fail a mixed-erase check or are marked unrestorable for the mixed file.
 6. Baselines in the same store: (a) **no cross-user share** (per-subject encryption, FadeVersion-style version share only); (b) **AND-wrap**; (c) **OR-wrap without copy-out** (shows the mixed-content leak).
+7. **PhD — mixed containers:** parse a PST/mbox and a two-subject photo library into inner objects; run erase on inner labels, not the whole file.
+8. **PhD — holds:** `hold(...)` / `release(...)`; `erase(S)` becomes immediate or **deferred**; never shred a key a live hold still needs.
+9. **PhD — multi-tenant trace:** replay a real (or published) multi-tenant ingest log, assign subjects/tenants, measure share vs erase vs hold cost at that mix.
 
 Details: [docs/method.md](docs/method.md).
 
@@ -145,31 +171,45 @@ Boneh & Lipton (USENIX Security 1996) and Perlman’s Ephemerizer/FADE line inve
 
 ## Objectives
 
+**Core (enough for a complete prototype / MSc-scale write-up)**
+
 1. Freeze the problem statement and the glossary above; cite FadeVersion, FADE, Boneh–Lipton, Botelho sanitization, and DupLESS so the leftover is not overclaimed.
-2. Specify the key/layout rules for `unique`, `identical`, and `mixed` under an immutable snapshot log and a mutable key store.
+2. Specify the key/layout rules for `unique`, `identical`, and labeled `mixed` under an immutable snapshot log and a mutable key store.
 3. Implement a laptop-scale store: ingest, restore, `erase(S)`, owner sets, OR-wrap, AND-wrap, copy-out.
 4. Measure extra unique bytes, erase latency, and restore success/failure on a synthetic two-subject corpus.
-5. Write the report so a leak on mixed+OR-wrap and a space hit on no-cross-user-share are expected results, not surprises.
+5. Write so a leak on mixed+OR-wrap and a space hit on no-cross-user-share are expected results, not surprises.
+
+**PhD layer (in scope for the full thesis, not optional footnotes)**
+
+6. **Mixed containers.** Ingest one **PST/mbox** and one **photo library** that each contain two subjects. Parse to messages / attachments / photos; erase Alice inside the container; Bob’s remaining inner objects restore; Alice is not recoverable from leftover store + Bob’s keys.
+7. **Holds vs erase.** Implement hold, release, and deferred erase. Show the four cases in the hold table (hold-then-erase on Alice; hold on Bob’s shared identical chunk; hold on mixed container; erase-then-hold). Measure how long Alice remains recoverable while a hold is live, and that shred runs when the last hold lifts.
+8. **Real multi-tenant trace.** Replay a published or obtained multi-tenant backup trace (or the closest public proxy: FSL-style backup streams labeled into tenants/subjects). Report how much data is unique vs identical vs container-mixed, and the space/restore/unrecoverability cost of `erase` + holds on that mix. If a true multi-tenant trace cannot be released, document the substitute and what it cannot prove.
 
 ---
 
 ## Scope
 
-**In**
+**In (core)**
 
 - Subject-scoped erase in a chunk-addressed backup with immutable snapshots.
-- Explicit unique / identical / mixed classes and OR vs AND vs no-share vs copy-out.
+- Explicit unique / identical / labeled-mixed classes and OR vs AND vs no-share vs copy-out.
 - Synthetic multi-subject corpus; honest threat model (leftover store + remaining keys).
 - Comparison to FadeVersion-style **version** delete (already solved) vs **subject** delete (this work).
 
+**In (PhD layer)**
+
+- Mixed **containers**: one shared PST/mbox and one two-subject photo library, parsed to inner objects.
+- **Holds vs erase**: hold/release, deferred shred, documented window where a held mixed snapshot still yields the subject.
+- A **real multi-tenant trace** (or a named public substitute) with tenant/subject labels, share statistics, and erase/hold cost.
+
 **Out**
 
-- A new CDC algorithm or video remux hasher.
-- Legal advice or an automatic PII detector (labels are inputs).
+- A new CDC algorithm.
+- Legal advice. Automatic PII detection may be a *heuristic helper* for labeling a trace; it is not the contribution.
 - Production key hardware, SGX, or blockchain.
 - Encrypted-dedup brute-force resistance (DupLESS) as the contribution.
 - Physical drive-level overwrite as the only delete mechanism.
-- Near-duplicate / perceptual matching.
+- Near-duplicate / perceptual matching (a group photo is mixed because both people are in it, not because two photos “look similar”).
 
 ---
 
@@ -181,8 +221,9 @@ Boneh & Lipton (USENIX Security 1996) and Perlman’s Ephemerizer/FADE line inve
 | Store | In-repo chunk store + recipes + key store |
 | Chunks | Content-defined or fixed-size (implementation detail) |
 | Crypto | AES-GCM (or equivalent) for `{chunk}_k`; control keys in a local escrow |
-| Corpus | Synthetic two-subject files (unique / identical / mixed) |
-| Eval | Ingest → share → erase → restore checks + unique-byte counts |
+| Corpus (core) | Synthetic two-subject files (unique / identical / labeled mixed) |
+| Corpus (PhD) | Synthetic PST/mbox + two-subject photo library; multi-tenant ingest trace |
+| Eval | Ingest → share → hold/erase → restore checks + unique-byte counts |
 
 ---
 
@@ -190,8 +231,11 @@ Boneh & Lipton (USENIX Security 1996) and Perlman’s Ephemerizer/FADE line inve
 
 - After `erase(Alice)` on **unique** data: Alice cannot restore; chunks are shredded or GC’d; Bob is unaffected.
 - After `erase(Alice)` on **identical** shareable data: Alice cannot restore her snapshot; Bob’s restore byte-matches the original; unique bytes stay near one copy.
-- After `erase(Alice)` on **mixed** data: Alice’s bytes are not recoverable from the store plus Bob’s remaining keys; Bob gets a defined outcome (copy-out success, or an explicit “old snapshot cannot keep this file” failure)—not a silent leak.
+- After `erase(Alice)` on **labeled mixed** data: Alice’s bytes are not recoverable from the store plus Bob’s remaining keys; Bob gets a defined outcome (copy-out success, or an explicit “old snapshot cannot keep this file” failure)—not a silent leak.
 - AND-wrap and no-cross-user-share are implemented as baselines and lose either Bob’s restore or space, as predicted.
+- **PhD — PST / photo library:** `erase(Alice)` removes Alice’s messages/photos (and Alice from group items by copy-out or drop); Bob’s remaining items restore; whole-file wrap of the container is shown as the leak baseline.
+- **PhD — holds:** a live hold blocks shred of the keys it still needs; after `release`, deferred erase meets the same unrecoverability checks as immediate erase. The hold window is measured, not hidden.
+- **PhD — multi-tenant trace:** report share mix and erase/hold cost on that trace; do not generalize beyond what the trace contains.
 - The write-up names FadeVersion’s version-scoped leftover and does not claim Boneh-style shredding is new.
 
 ---
@@ -202,9 +246,12 @@ Boneh & Lipton (USENIX Security 1996) and Perlman’s Ephemerizer/FADE line inve
 |---|---|
 | A | Freeze claim, glossary, and related work (this document) |
 | B | Data model: chunks, recipes, owner sets, key wraps |
-| C | `erase(S)` + restore for unique and identical; tests for the mixed leak under OR-wrap |
-| D | Copy-out / refusal policy for mixed + immutable snapshots; space/restore measurements |
-| E | Write-up: problem, definitions, design, limits |
+| C | `erase(S)` + restore for unique and identical; tests for the labeled-mixed leak under OR-wrap |
+| D | Copy-out / refusal policy for labeled mixed + immutable snapshots; space/restore measurements |
+| E | **PhD:** PST/mbox + two-subject photo library parsers; inner-object erase |
+| F | **PhD:** hold / release / deferred erase; hold-vs-erase cases |
+| G | **PhD:** multi-tenant trace ingest and measurements |
+| H | Write-up: problem, definitions, core results, PhD-layer results, limits |
 
 ---
 

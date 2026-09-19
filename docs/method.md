@@ -22,6 +22,26 @@ For each file the caller supplies `subject`, `snapshot_id`, `path`, `bytes`, and
 
 `restore(subject, snapshot_id)` reads that snapshot’s recipes, unwraps each DEK with `s_subject`, decrypts chunks, concatenates. Missing key or missing recipe → fail that file.
 
+## Mixed containers (PhD)
+
+Whole-file labels are not enough for mailboxes and libraries.
+
+**PST / mbox.** Parse folders → messages → bodies and attachments. Each inner object gets `subject` set (From/To/Cc as a stand-in label in the prototype; a real system would use a policy table). Attachments that appear in both inboxes are `identical`. A single body that names two people, or a conversation export stored as one blob, is `mixed`. Ingest inner objects as the chunking unit; the PST path is a recipe that lists those inner chunk ids plus leftover container bytes (index, headers).
+
+**Photo library.** Parse the album/package into items (original, derived thumbnail if stored separately, sidecar). Solo Alice / solo Bob = `unique`. The same original ingested under two accounts = `identical`. A group shot labeled Alice+Bob = `mixed` (copy-out = crop/redact is **out of scope**; default is drop the item from Alice’s restore and keep it on Bob only if policy says Bob may retain a photo that includes Alice — the prototype implements **drop-for-Alice, keep-for-Bob** as an explicit, documented leak of Alice’s *likeness* in Bob’s copy, versus **drop-for-both** as the strict unrecoverability option). Measure both policies.
+
+`erase(S)` then runs on inner owner sets, not on “delete the whole PST.”
+
+## Holds (PhD)
+
+The key store tracks `holds`: `{hold_id, target, until?}` where `target` is a snapshot, file, tenant, or subject.
+
+- `hold(target)` increments a pin on every control key and DEK needed to restore that target.
+- `erase(S)` still drops Alice’s *future* ingest and her recipes that are **not** pinned. It **must not** shred a key with pin count > 0. Unfinished work goes on a **deferred-erase queue** tagged with `S` and the blocking `hold_id`s.
+- `release(hold_id)` decrements pins. When a key’s pin hits 0 and it is queued for `S`, run the rest of `erase(S)` for that key (shred wrap, maybe shred `k`, maybe copy-out).
+
+A restore of a still-held mixed target may return Alice’s bytes. The restore API flags `contains_erased_subject=true` until deferred erase finishes.
+
 ## erase(S)
 
 1. Mark all of `S`’s recipes as erased (they are not rewritten in place; they become unrestorable).
@@ -42,9 +62,14 @@ For each file the caller supplies `subject`, `snapshot_id`, `path`, `bytes`, and
 
 `no-cross-user` is the space upper bound (“correct, expensive”). `or-wrap` on mixed is the security lower bound (“cheap, wrong”). The design we claim is `or-wrap` for identical + never-share or copy-out for mixed + shred `s_S` + immutable recipes.
 
+## Multi-tenant trace (PhD)
+
+Replay an ingest log: `(time, tenant, subject, path, bytes or fingerprint)`. Public substitutes if a private trace cannot be published: FSL homes traces, or a generated tenant mix on top of a public file corpus. The point is **workload shape** (how much unique / identical / container-mixed, how often holds would fire), not a new CDC number.
+
 ## Limits (by design)
 
-- Labels are trusted. A real deployment needs a PII/policy layer; that is out of scope.
+- Core labels are trusted. Container parsers use header/path heuristics; they are not a legal PII product.
 - Unrecoverability is computational (AES). It is not “the disk was overwritten.”
 - If the key store is backed up inside the same WORM vault as the chunks, shredding `s_S` does not erase old key-store snapshots. Key-store retention must be shorter than, or independently shreddable from, data retention.
-- Legal holds block shred of the keys they still need.
+- Legal holds **block** shred of the keys they still need; that is required behavior, and it delays unrecoverability.
+- Group photos: “forget Alice’s likeness in Bob’s copy” is a policy choice (`keep-for-Bob` vs `drop-for-both`), not something chunk hashing can decide.

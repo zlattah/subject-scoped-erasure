@@ -1,27 +1,39 @@
-# Evaluation
+# Evaluation (planned)
 
-ffmpeg with libx264 and aac is required.
+No implementation results yet. The experiment is a **policy test**, not a CDC-ratio contest.
 
-```bash
-python3 -m pytest
-python3 -m cascade_dedup bench --duration 4 --width 320 --height 240 --fps 12
-```
+## Corpus
 
-Corpus: encode two `testsrc` clips (different sine tones), then lossless remux each to MP4, faststart MP4, MKV, MPEG-TS, fragmented MP4 (`ffmpeg -c copy`). Ten files, 848.5 KiB logical.
+Synthetic, two subjects (`alice`, `bob`), three classes, several snapshots:
 
-`python3 -m pytest`: **15 passed** (canonical units, remux ingest, FastCDC baseline).
+| Class | What is ingested | Expected share before erase |
+|---|---|---|
+| `unique` | Different files per subject | None across users |
+| `identical` | Same bytes, both subjects | One physical copy (OR-wrap) |
+| `mixed` | One blob labeled as containing both subjects | No payload share (or share-and-leak in the negative baseline) |
 
-| mode | unique KiB | media KiB | leftover KiB | ratio |
-|---|---:|---:|---:|---:|
-| FastCDC | 699.8 | 699.8 | 0 | 1.212 |
-| container-sample (Dewakar-style) | 250.0 | 191.6 | 58.4 | 3.394 |
-| **canonical-au** | **152.7** | **94.3** | 58.4 | **5.556** |
+Sizes stay laptop-scale. Labels are part of the input.
 
-On this remux set:
+## Checks after `erase(alice)`
 
-- vs FastCDC: unique 699.8 → 152.7 KiB (**4.6×** less; ratio 1.212 → 5.556).
-- vs container-sample: unique 250.0 → 152.7 KiB (**1.6×**). ISO-BMFF clones already share under Dewakar; the extra win is MKV/TS after canonicalize.
+| Mode | unique | identical | mixed |
+|---|---|---|---|
+| `or-wrap` | Alice fail, Bob ok, chunk gone or shredded | Alice fail, Bob **byte-identical** restore, one copy remains | If shared: **Bob’s restore still contains Alice** (documented leak) |
+| `and-wrap` | Alice fail | Bob may fail (wrong) | Bob fails |
+| `no-cross-user` | Alice fail, Bob ok | Alice fail, Bob ok, **two** copies | Alice fail, Bob ok, two copies |
+| `copy-out-mixed` | as `or-wrap` | as `or-wrap` | Bob restores a redacted/new object; Alice bytes not in store+Bob keys; old mixed snapshot fails unless rewrite is allowed |
 
-A CRF 32 re-encode shares **1 / 111** canonical units with the source on a 2 s clip. `--include-transcode` dilutes ratio to 4.514. The method does not treat transcodes as duplicates.
+Also: leftover-store attacker (all remaining keys + chunk log + recipes) must not decrypt Alice’s unique or mixed personal bytes.
 
-Laptop-scale lavfi only. Bit-identical restore is not implemented. Not evaluated against mkvdup disc rips. Next: real remuxes (phone re-export, `-c copy` rips, HLS vs MP4).
+## Metrics
+
+- Unique physical bytes before/after erase (space cost of each mode).
+- Restore success/failure and byte equality for Bob.
+- Erase latency (key shred + owner-set updates; GC optional).
+- Number of mixed snapshots that become unrestorable (immutability cost).
+
+## What would count as a failed experiment
+
+- `or-wrap` on mixed with no leak warning (the leak is the point of the negative test).
+- Claiming FadeVersion already did subject erase.
+- Measuring only dedup ratio and ignoring restore/unrecoverability.

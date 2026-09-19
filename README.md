@@ -12,6 +12,14 @@ This project is only that conflict. It is not a new chunking algorithm.
 
 ---
 
+## Motivation
+
+This is a production conflict, not a toy. Enterprise backup (Veeam, Rubrik, Cohesity, Data Domain) **deduplicates** across machines and now sells **immutable / Object Lock** vaults so ransomware cannot delete history. The same vault still holds last month’s mail, file shares, and laptop images. When HR offboards someone, or a customer exercises GDPR/CCPA erasure, the live app can drop the account; the backup chain often cannot be rewritten for 30–365 days or longer. Multi-tenant SaaS, Microsoft 365 / Google Workspace archives, and shared mailboxes or photo libraries are the same shape: one store, many subjects, objects that are **mixed** (one PST, one Teams site, one family album). Legal hold vs erase is already a daily eDiscovery fight — keep this mailbox, forget Alice — on that same vault.
+
+Regulators treat backups as in scope. The ICO says a valid erasure request must cover backup copies, or those copies must be put **beyond use** until they rotate, and must not be restored into production. The EDPB’s coordinated action on the right to erasure lists **deletion from backups** as a main failure, and questions whether “wait for the job to age out” is **without undue delay** when retention is long. What operators do today is wait, lock, restore-and-edit by hand, or crypto-shred a **whole tenant**. That is acceptable for a 7-day backup and a single owner. It fails when immutability is long, chunks are shared, and the file is mixed. That is the setting this project is for.
+
+---
+
 ## Problem statement
 
 **Given** a backup system that (1) **deduplicates** so that identical content is stored once and referenced from many files, users, and snapshots, and (2) treats retained snapshots as **immutable** (they must stay restorable and must not be silently rewritten),

@@ -2,7 +2,8 @@
 
 A backup store that shares identical bytes cannot, without extra design, both **keep history immutable** and **forget one person**. This project is that conflict: a store, a key/layout policy, and the real objects that make the policy hard — shared mailboxes, photo libraries, legal holds, and more than one tenant. It is not a new chunking algorithm.
 
-- Interim report plan: [projectplan.md](projectplan.md)
+- Working project plan: [projectplan.md](projectplan.md)
+- English-class interim report: [english-class-interim-report.md](english-class-interim-report.md)
 - Definitions and design: [docs/method.md](docs/method.md)
 - Related work: [docs/related-work.md](docs/related-work.md)
 - Planned evaluation: [docs/evaluation.md](docs/evaluation.md)

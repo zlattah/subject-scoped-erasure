@@ -32,9 +32,9 @@ Also: leftover-store attacker (all remaining keys + chunk log + recipes) must no
 - Erase latency (key shred + owner-set updates; GC optional).
 - Number of mixed snapshots that become unrestorable (immutability cost).
 
-## PhD layer
+Labeled blobs establish the policy. The same checks then run on real mixed files, on holds, and on a multi-tenant ingest mix.
 
-### Mixed containers
+## Mixed containers
 
 Two fixtures, two subjects:
 
@@ -77,5 +77,5 @@ If only a public proxy trace is available, say so and do not claim enterprise ge
 - `or-wrap` on mixed with no leak warning (the leak is the point of the negative test).
 - Claiming FadeVersion already did subject erase.
 - Measuring only dedup ratio and ignoring restore/unrecoverability.
-- PhD write-up that never parses a PST/library and only uses whole-file mixed labels.
+- Stopping at whole-file mixed labels and never parsing a PST/library.
 - Shredding keys that a live hold still needs, or hiding the recoverability window.

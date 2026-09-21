@@ -1,6 +1,4 @@
-# CS project plan
-
-**Subject-scoped erasure in a deduplicated, immutable backup**
+# Subject-scoped erasure in a deduplicated, immutable backup
 
 A laptop-scale backup store that can forget one person without rewriting frozen snapshots and without breaking other people who still share stored bytes.
 

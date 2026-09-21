@@ -258,4 +258,4 @@ Boneh & Lipton (USENIX Security 1996) and Perlman’s Ephemerizer/FADE line inve
 
 ## Status
 
-The plan above is the whole project. Implementation starts at Phase B.
+The plan above is the whole project. A laptop-scale prototype is in `cascade_dedup/erase.py` (`python -m cascade_dedup demo`). Implementation continues from Phase B/C.

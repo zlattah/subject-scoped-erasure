@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Subject-scoped erasure in a deduplicated immutable backup"
 requires-python = ">=3.11"
 readme = "README.md"
+dependencies = ["cryptography>=42"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

@@ -77,4 +77,4 @@ WP6 can start as soon as WP2 exists (holds on unique/identical). WP5 can use mbo
 
 ## Status
 
-WP0 is the current README. Implementation starts at WP1.
+WP1–WP7 have an in-memory prototype and tests (`tests/test_erase_store.py`, `tests/test_erase_containers.py`). PST is still represented by mbox; physical GC of WORM ciphertext is not performed.

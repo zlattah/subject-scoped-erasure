@@ -48,6 +48,7 @@ WP6 can start as soon as WP2 exists (holds on unique/identical). WP5 can use mbo
 | Fixtures | two-subject files; mbox; photo folder; optional PST |
 | Trace replay | script + table of mix and costs |
 | Academic report | `english-class-interim-report.md` (sections 3–5 still empty) |
+| CS course plan | `cs-project-plan.md` |
 | Design notes | `docs/method.md`, `docs/evaluation.md` |
 
 ## Stack

@@ -10,3 +10,4 @@ data/
 *.pyc
 .coverage
 htmlcov/
+erase-store.pkl

@@ -1,81 +1,81 @@
-# Evaluation (planned)
+# Evaluation
 
-No implementation results yet. The experiment is a **policy test**, not a CDC-ratio contest.
+The experiment is a **policy test**, not a CDC-ratio contest. Reproduce:
+
+```bash
+python -m cascade_dedup eval --seed 0
+```
+
+Full JSON from seed 0: [erase-eval.json](erase-eval.json). Laptop-scale **synthetic** data. Do not claim enterprise generality. `physical_bytes` stay high because the chunk log is WORM; **`live_bytes`** is the decryptable set (leftover keys + remaining wraps).
 
 ## Corpus
 
-Synthetic, two subjects (`alice`, `bob`), three classes, several snapshots:
+Seeded two-subject ingest (`alice`, `bob`), snapshot `tuesday`:
 
-| Class | What is ingested | Expected share before erase |
+| Class | What | Logical shape |
 |---|---|---|
-| `unique` | Different files per subject | None across users |
-| `identical` | Same bytes, both subjects | One physical copy (OR-wrap) |
-| `mixed` | One blob labeled as containing both subjects | No payload share (or share-and-leak in the negative baseline) |
+| `unique` | 24 files each | 4 KiB, Alice files marked `ALICE-SECRET` |
+| `identical` | 8 shared installers | 16 KiB each, both subjects |
+| `mixed` | 8 labeled blobs | contains `ALICE-LINE` and `BOB-LINE` |
 
-Sizes stay laptop-scale. Labels are part of the input.
+## Mode table (seed 0)
 
-## Checks after `erase(alice)`
+After `erase(alice)`. `vs_ns_*` is live bytes / never-share live bytes.
 
-| Mode | unique | identical | mixed |
-|---|---|---|---|
-| `or-wrap` | Alice fail, Bob ok, chunk gone or shredded | Alice fail, Bob **byte-identical** restore, one copy remains | If shared: **Bob’s restore still contains Alice** (documented leak) |
-| `and-wrap` | Alice fail | Bob may fail (wrong) | Bob fails |
-| `no-cross-user` | Alice fail, Bob ok | Alice fail, Bob ok, **two** copies | Alice fail, Bob ok, two copies |
-| `copy-out-mixed` | as `or-wrap` | as `or-wrap` | Bob restores a redacted/new object; Alice bytes not in store+Bob keys; old mixed snapshot fails unless rewrite is allowed |
+| Mode | Alice unique gone | Bob installer exact | Bob mixed still has Alice | live after | vs never-share before | vs never-share after |
+|---|---|---|---|---|---|---|
+| `or-wrap` | yes | yes | **yes (leak)** | 263 488 | **0.69** | 1.00 |
+| `and-wrap` | yes | **no** | no (Bob blinded) | 98 688 | 0.69 | 0.37 |
+| `no-cross-user` | yes | yes | **yes** (Bob’s private copy) | 263 488 | 1.00 | 1.00 |
+| `copy-out-mixed` | yes | yes | **no** | 263 384 | 0.75 | 1.00 |
 
-Also: leftover-store attacker (all remaining keys + chunk log + recipes) must not decrypt Alice’s unique or mixed personal bytes.
+Read of the numbers:
 
-## Metrics
+- Sharing pays **before** erase: OR-wrap holds 69% of never-share live bytes (362 176 / 526 976).
+- After Alice is gone, OR-wrap and never-share land on the **same** live set (Bob’s unique + one installer + mixed). The duplicate installer copies were only wasted while Alice still existed.
+- AND-wrap looks cheapest after erase because it also destroys Bob’s shared objects. That is the wrong baseline.
+- Copy-out keeps the share saving on identical files, redacts mixed (`unrestorable_mixed = 8`), leftover keys have no `ALICE-SECRET` / `ALICE-LINE`. After erase its live bytes match never-share within 0.04% (redaction drops a few lines). The win is **correctness**, not a smaller Bob.
 
-- Unique physical bytes before/after erase (space cost of each mode).
-- Restore success/failure and byte equality for Bob.
-- Erase latency (key shred + owner-set updates; GC optional).
-- Number of mixed snapshots that become unrestorable (immutability cost).
+Erase on this corpus is < 1 ms in-process. That is not a system latency result.
 
-Labeled blobs establish the policy. The same checks then run on real mixed files, on holds, and on a multi-tenant ingest mix.
+## Holds
 
-## Mixed containers
-
-Two fixtures, two subjects:
-
-1. **One PST or mbox** — Alice-only messages, Bob-only messages, a shared thread, a shared attachment.
-2. **One photo library** — Alice solos, Bob solos, at least one group shot, optional identical original ingested twice.
-
-Checks after `erase(alice)`:
-
-- Alice-only inner objects unrestorable; their DEKs shredded if unpinned.
-- Bob-only inner objects byte-identical.
-- Shared attachment behaves as `identical`.
-- Group shot follows the declared policy (`keep-for-Bob` leak vs `drop-for-both`).
-- Whole-file OR-wrap of the PST/library is the **negative** baseline (Bob’s restore still contains Alice’s mail/photos).
-
-### Holds vs erase
-
-Run the four README cases on the same fixtures:
-
-| Case | Expect |
+| Metric | Value |
 |---|---|
-| Hold Alice snapshot, then `erase(alice)` | No shred of Alice keys until `release`; then deferred erase completes |
-| Hold Bob snapshot that shares an identical chunk, then `erase(alice)` | Alice wrap gone; `k` stays while hold (or Bob) lives |
-| Hold mixed PST/library, then `erase(alice)` | Restore of held object may still contain Alice and is flagged; after release, copy-out/drop then shred |
-| `erase(alice)` then hold Alice | Hold cannot revive shredded keys |
+| Snapshots Alice stayed decryptable after `erase` while held | 3 / 3 |
+| Restore flagged `contains_erased_subject` | yes |
+| Gone after `release` | yes |
+| Leftover has Alice after release | no |
+| Erases blocked by hold | 1 |
 
-Metric: **recoverability window** — time (or snapshot count) Alice remains decryptable after `erase` was requested but a hold was live.
+The recoverability window is **measured in snapshots the hold covered**, not hidden.
 
-### Multi-tenant trace
+## Synthetic multi-tenant trace
 
-Replay the trace into the store. Report:
+180 events, three named tenants (`acme`, `globex`, `contoso`). **Proxy workload**, not a production backup log.
 
-- Fraction of bytes unique / identical / container-mixed, per tenant and global.
-- Unique bytes after a sample of `erase(subject)` calls vs `no-cross-user`.
-- How many erases hit a hold (if the trace or a synthetic hold schedule includes them).
+| | unique | identical | mixed |
+|---|---|---|---|
+| Byte fraction | 0.385 | 0.591 | 0.024 |
 
-If only a public proxy trace is available, say so and do not claim enterprise generality.
+After `erase(alice)`: copy-out live **798 067** vs never-share **995 564** (ratio **0.80**). The identical-heavy mix is where sharing still pays after one subject is shredded. Leftover has no `ALICE-SECRET`.
+
+## Containers
+
+| Check | Result |
+|---|---|
+| mbox parsed; Bob restore after erase has no `Alice Lane` | pass |
+| whole-file OR-wrap of the same mbox still leaks `Alice Lane` | pass (negative) |
+| photo library: Bob keeps solo; group dropped (`drop-for-both`) | pass |
+
+Outlook PST is still **mbox-shaped**.
 
 ## What would count as a failed experiment
 
-- `or-wrap` on mixed with no leak warning (the leak is the point of the negative test).
+- `or-wrap` on mixed with no leak (the leak is the point of the negative test).
 - Claiming FadeVersion already did subject erase.
 - Measuring only dedup ratio and ignoring restore/unrecoverability.
-- Stopping at whole-file mixed labels and never parsing a PST/library.
-- Shredding keys that a live hold still needs, or hiding the recoverability window.
+- Stopping at whole-file mixed labels and never parsing a mailbox/library.
+- Shredding keys a live hold still needs, or hiding the recoverability window.
+
+This run does not fail those checks. It also does not replace a real tenant trace or a native PST.

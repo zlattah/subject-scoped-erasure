@@ -1,0 +1,141 @@
+{
+  "corpus": "synthetic labeled unique/identical/mixed, seed=0",
+  "modes": [
+    {
+      "name": "or-wrap",
+      "live_bytes_before": 362176,
+      "live_bytes_after": 263488,
+      "physical_bytes_after": 362176,
+      "n_live_chunks_after": 72,
+      "n_chunks": 96,
+      "alice_unique_gone": true,
+      "bob_identical_ok": true,
+      "bob_mixed_has_alice": true,
+      "leftover_has_alice_unique": false,
+      "leftover_has_alice_mixed": true,
+      "unrestorable_mixed": 0,
+      "erase_ms": 0.094,
+      "space_vs_never_share_before": 0.6873,
+      "space_vs_never_share_after": 1.0
+    },
+    {
+      "name": "and-wrap",
+      "live_bytes_before": 362176,
+      "live_bytes_after": 98688,
+      "physical_bytes_after": 362176,
+      "n_live_chunks_after": 24,
+      "n_chunks": 96,
+      "alice_unique_gone": true,
+      "bob_identical_ok": false,
+      "bob_mixed_has_alice": false,
+      "leftover_has_alice_unique": false,
+      "leftover_has_alice_mixed": false,
+      "unrestorable_mixed": 0,
+      "erase_ms": 0.17,
+      "space_vs_never_share_before": 0.6873,
+      "space_vs_never_share_after": 0.3745
+    },
+    {
+      "name": "no-cross-user",
+      "live_bytes_before": 526976,
+      "live_bytes_after": 263488,
+      "physical_bytes_after": 526976,
+      "n_live_chunks_after": 72,
+      "n_chunks": 144,
+      "alice_unique_gone": true,
+      "bob_identical_ok": true,
+      "bob_mixed_has_alice": true,
+      "leftover_has_alice_unique": false,
+      "leftover_has_alice_mixed": true,
+      "unrestorable_mixed": 0,
+      "erase_ms": 0.207,
+      "space_vs_never_share_before": 1.0,
+      "space_vs_never_share_after": 1.0
+    },
+    {
+      "name": "copy-out-mixed",
+      "live_bytes_before": 395392,
+      "live_bytes_after": 263384,
+      "physical_bytes_after": 428504,
+      "n_live_chunks_after": 72,
+      "n_chunks": 128,
+      "alice_unique_gone": true,
+      "bob_identical_ok": true,
+      "bob_mixed_has_alice": false,
+      "leftover_has_alice_unique": false,
+      "leftover_has_alice_mixed": false,
+      "unrestorable_mixed": 8,
+      "erase_ms": 0.563,
+      "space_vs_never_share_before": 0.7503,
+      "space_vs_never_share_after": 0.9996
+    }
+  ],
+  "hold": {
+    "wait_snapshots": 3,
+    "decryptable_snapshots": 3,
+    "flagged_during_hold": true,
+    "gone_after_release": true,
+    "leftover_has_alice_after_release": false,
+    "erases_blocked_by_hold": 1
+  },
+  "trace": {
+    "n_events": 180,
+    "logical_bytes": 1468756,
+    "byte_mix": {
+      "unique": 565248,
+      "identical": 868352,
+      "mixed": 35156
+    },
+    "byte_mix_frac": {
+      "unique": 0.3848,
+      "identical": 0.5912,
+      "mixed": 0.0239
+    },
+    "per_tenant_bytes": {
+      "acme": {
+        "unique": 172032,
+        "identical": 327680,
+        "mixed": 12408
+      },
+      "globex": {
+        "unique": 200704,
+        "identical": 262144,
+        "mixed": 14476
+      },
+      "contoso": {
+        "unique": 192512,
+        "identical": 278528,
+        "mixed": 8272
+      }
+    },
+    "copy_out_mixed": {
+      "live_before": 1063668,
+      "live_after_erase_alice": 798067,
+      "leftover_has_alice_unique": false,
+      "recipes": {
+        "unique": 110,
+        "identical": 53,
+        "mixed": 17
+      }
+    },
+    "no_cross_user": {
+      "live_before": 1474868,
+      "live_after_erase_alice": 995564,
+      "leftover_has_alice_unique": false,
+      "recipes": {
+        "unique": 110,
+        "identical": 53,
+        "mixed": 17
+      }
+    },
+    "space_vs_never_share": 0.8016,
+    "proxy": "synthetic tenant mix (not an enterprise trace)"
+  },
+  "containers": {
+    "mbox_inner_bob_has_alice_lane": false,
+    "mbox_whole_file_or_wrap_leaks": true,
+    "photo_bob_has_alice_solo": false,
+    "photo_bob_group_dropped": true
+  },
+  "note": "Laptop-scale synthetic. Do not claim enterprise generality. physical_bytes stay high because the chunk log is WORM; live_bytes is the decryptable set."
+}

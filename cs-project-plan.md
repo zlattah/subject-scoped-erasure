@@ -39,8 +39,6 @@ The difficulty is not uniform. **Unique** bytes (Alice’s diary) can be shredde
 
 **In scope.** Subject-scoped erase in a chunk-addressed backup; the three file classes, including mixed containers; wrap-mode baselines; holds; leftover-store attacker (remaining keys + chunk log + recipes); laptop-scale Python prototype and policy tests.
 
-**Out of scope.** A new content-defined chunking algorithm; legal advice or a production PII classifier (labels and header heuristics are inputs); SGX, blockchain, or HSMs as the contribution; DupLESS-style encrypted-dedup brute-force resistance; physical drive overwrite as the only delete mechanism; perceptual near-duplicate matching.
-
 ---
 
 ## Major technical components
@@ -95,26 +93,17 @@ A native Outlook PST parser, physical GC of WORM ciphertext, and a real multi-te
 
 ## Project schedule
 
-Work is ordered by **dependency**, not by calendar dates. Each package ends with tests.
+Course deadlines are the checkpoints. Work between them is what has to be in that submission.
 
-```
-WP0 → WP1 → WP2 → WP3 → WP4
-                    └→ WP5 → WP6 → WP7 → WP8
-```
-
-| Phase | Package | Done when |
+| When | Course deadline | What this project delivers by then |
 |---|---|---|
-| WP0 | Claim freeze | README glossary matches code names |
-| WP1 | Store skeleton | Ingest and restore one unique file |
-| WP2 | Identical share | OR-wrap; Bob exact; one live copy |
-| WP3 | Labeled mixed | Copy-out or unrestorable; leftover attacker |
-| WP4 | Baselines | AND-wrap, never-share, mixed OR-wrap leak |
-| WP5 | Containers | One mbox (PST optional) and one photo folder |
-| WP6 | Holds | Pin, deferred erase, measured window |
-| WP7 | Trace | Mix table and erase/hold cost on the log actually run |
-| WP8 | Write-up | Technical note; cite FadeVersion; do not claim Boneh is new |
+| **Semester A, weeks 1–4** | **Week 4 — Project Plan** | Problem, glossary, related-work placement, this plan, and a frozen claim (`erase(S)` under dedup + WORM + mixed + hold). |
+| **Semester A, weeks 5–11** | **Week 11 — Interim Report I & presentation** | Store skeleton: unique erase and identical OR-wrap with tests; CLI `ingest` / `restore` / `erase`; Interim Report I with introduction, literature, and early design; a short live demo (Alice diary gone, Bob’s installer still restores). |
+| **Semester B, weeks 1–4** | **Week 4 — Interim Report II** | Mixed copy-out and leak baseline, mbox + photo-library inner objects, holds and deferred erase; Interim Report II with system design and methodology; `eval` table on the synthetic corpus. |
+| **Semester B, weeks 5–11** | **Week 11 — Final Report** | Wrap-mode comparison (OR / AND / never-share / copy-out), hold recoverability window, synthetic tenant mix, leftover-store checks; Final Report with experiment results, limits, and honest FadeVersion/Boneh citations. |
+| **Semester B, week 12** | **Week 12 — Oral presentation & project demonstration** | Talk through unique / identical / mixed / hold on the running prototype; show `python -m cascade_dedup demo` and `eval`; answer what leaked, what Bob kept, and what the numbers mean. |
 
-WP1–WP7 already have an in-memory prototype and `eval` on synthetic data. Remaining schedule: keep tests green, optional PST hardening, replace or clearly label the tenant proxy if a public trace appears, then WP8. Holds can be extended as soon as WP2 exists; WP5 can stay on mbox if Outlook parsing consumes the project.
+A laptop prototype and synthetic `eval` already exist in the repo; Semester A Week 11 still has to turn that into the *report and presentation*, and Semester B still has to finish mixed/hold write-up, fill Interim II and the Final Report, and rehearse the demo. If Outlook PST parsing overruns, the demo stays on mbox and the report says so.
 
 **Risks.** Hostile PST format → ship mbox. No real trace → named synthetic/public proxy. Mixed+hold bugs → leftover-store tests before any success claim. Key store backed up with chunks → shorter or independently shreddable key retention, documented.
 
@@ -131,17 +120,3 @@ This project uses AI-assisted tools (including Cursor) as a **drafting and imple
 - Draft Python for the store, parsers, tests, and `eval` harness from the written spec.
 - Explain failures (restore leak, wrap bugs) and propose patches that are then run under pytest.
 
-**Not intended uses.**
-
-- Inventing papers, quotes, or measurements that were not produced by `eval` or tests.
-- Treating model text as legal advice (ICO/EDPB/GDPR are cited from published sources; the store is not a compliance product).
-- Pasting real tenant mail, photos, or backup dumps into a prompt. Labels and synthetic markers (`ALICE-SECRET`, fixture mbox) only.
-- Submitting generated code or tables that have not been executed.
-
-**Student responsibility.** The claim (subject erase under dedup + WORM + mixed + hold), the class rules, and the write-up’s honesty limits are human-owned. Every “success” row must match a test or a seed-0 `eval` JSON. If AI proposes that FadeVersion already did subject erase, the related-work note is checked against the paper: it did **version** wraps, not this leftover.
-
-**Verification.** `python -m pytest`; `python -m cascade_dedup eval --seed 0`; leftover-attacker helpers in the store. Citations in the English-class report stay author–year and must correspond to entries in section 6 / [docs/related-work.md](docs/related-work.md).
-
-**Integrity.** Acknowledge AI assistance in the course’s required form. Do not list a model as a co-author. Do not copy substantial copyrighted paper text into the repo; summarise and cite. Generated comments or names that overclaim (“novel CDC”, “GDPR certified”) are stripped.
-
-**Limitations.** Models blur version-delete with subject-delete and unique with mixed. The glossary in the README is the check against that. Evaluation remains a synthetic policy test until a named public trace is used; AI must not be used to dress the proxy up as production telemetry.

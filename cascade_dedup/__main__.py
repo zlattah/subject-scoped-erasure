@@ -167,6 +167,32 @@ def cmd_photos(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_eval(args: argparse.Namespace) -> int:
+    from cascade_dedup.measure import dumps_eval, format_mode_table, run_eval
+
+    result = run_eval(seed=args.seed)
+    print(format_mode_table(result["modes"]))
+    print()
+    print("hold:", json.dumps(result["hold"]))
+    print("trace mix:", json.dumps(result["trace"]["byte_mix_frac"]))
+    print(
+        "trace live after erase(alice): copy-out",
+        result["trace"]["copy_out_mixed"]["live_after_erase_alice"],
+        "never-share",
+        result["trace"]["no_cross_user"]["live_after_erase_alice"],
+        "ratio",
+        result["trace"]["space_vs_never_share"],
+    )
+    print("containers:", json.dumps(result["containers"]))
+    print(result["note"])
+    if args.json:
+        print(dumps_eval(result))
+    if args.out:
+        Path(args.out).write_text(dumps_eval(result) + "\n")
+        print("wrote", args.out, file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="cascade-dedup",
@@ -216,6 +242,12 @@ def main(argv: list[str] | None = None) -> int:
     photos.add_argument("--dir", required=True)
     photos.add_argument("--snapshot", required=True)
     photos.set_defaults(func=cmd_photos)
+
+    ev = sub.add_parser("eval", help="Policy measurements vs never-share (synthetic corpus)")
+    ev.add_argument("--seed", type=int, default=0)
+    ev.add_argument("--json", action="store_true")
+    ev.add_argument("--out", help="Write full JSON results to this path")
+    ev.set_defaults(func=cmd_eval)
 
     bench = sub.add_parser("bench", help="Legacy remux AU bench (not the erasure claim)")
     bench.add_argument("--duration", type=float, default=4.0)

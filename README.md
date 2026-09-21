@@ -3,6 +3,7 @@
 A backup store that shares identical bytes cannot, without extra design, both **keep history immutable** and **forget one person**. This project is that conflict: a store, a key/layout policy, and the real objects that make the policy hard — shared mailboxes, photo libraries, legal holds, and more than one tenant. It is not a new chunking algorithm.
 
 - Working project plan: [projectplan.md](projectplan.md)
+- CS course project plan: [cs-project-plan.md](cs-project-plan.md)
 - English-class interim report: [english-class-interim-report.md](english-class-interim-report.md)
 - Definitions and design: [docs/method.md](docs/method.md)
 - Related work: [docs/related-work.md](docs/related-work.md)
@@ -258,4 +259,4 @@ Boneh & Lipton (USENIX Security 1996) and Perlman’s Ephemerizer/FADE line inve
 
 ## Status
 
-The plan above is the whole project. A laptop-scale prototype is in `cascade_dedup/erase.py` (`python -m cascade_dedup demo`). Implementation continues from Phase B/C.
+The plan above is the whole project. Prototype: `cascade_dedup/erase.py`. Measurements: `python -m cascade_dedup eval` (see [docs/evaluation.md](docs/evaluation.md)).

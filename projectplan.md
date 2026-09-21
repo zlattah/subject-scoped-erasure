@@ -78,4 +78,4 @@ WP6 can start as soon as WP2 exists (holds on unique/identical). WP5 can use mbo
 
 ## Status
 
-WP1–WP7 have an in-memory prototype, tests, and a synthetic eval (`python -m cascade_dedup eval`). PST is still mbox; physical GC of WORM ciphertext is not performed.
+Implementation starts at WP1 (store skeleton) and proceeds through WP8 (write-up).

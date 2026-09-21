@@ -70,8 +70,6 @@ Stack. Python 3.11+, AES-GCM for chunk encryption, pytest. Commands: ingest, res
 
 ## Expected results & deliverables
 
-Expected results (policy correctness, not a compression contest).
-
 - Unique: after erase(alice), Alice cannot restore; leftover keys do not yield her diary; Bob is unaffected.
 - Identical OR-wrap: Bob’s restore of the installer is byte-identical; one live copy remains; Alice cannot restore her copy.
 - Mixed OR-wrap: documented leak — Bob’s restore still contains Alice. If this looks like successful erasure, the test is wrong.

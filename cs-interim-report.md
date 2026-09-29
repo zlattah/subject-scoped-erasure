@@ -102,36 +102,23 @@ These systems set up cryptographic deletion as the only feasible means of deleti
 
 ## 6. References
 
-[1] Bellare, M., Keelveedhi, S. and Ristenpart, T. (2013a) ‘Message-locked encryption and secure deduplication’, *Advances in Cryptology – EUROCRYPT 2013*. Springer, pp. 296–312.
+<!-- APA 7 hanging indent: 0.5 in. In Word: select all entries → Paragraph → Special: Hanging → By: 0.5". -->
 
-[2] Bellare, M., Keelveedhi, S. and Ristenpart, T. (2013b) ‘DupLESS: server-aided encryption for deduplicated storage’, *22nd USENIX Security Symposium*. USENIX, pp. 179–194.
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Bellare, M., Keelveedhi, S., &amp; Ristenpart, T. (2013a). Message-locked encryption and secure deduplication. In T. Johansson &amp; P. Q. Nguyen (Eds.), <i>Advances in cryptology – EUROCRYPT 2013</i> (pp. 296–312). Springer.</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Bellare, M., Keelveedhi, S., &amp; Ristenpart, T. (2013b). DupLESS: Server-aided encryption for deduplicated storage. In <i>Proceedings of the 22nd USENIX Security Symposium</i> (pp. 179–194). USENIX Association.</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Boneh, D., &amp; Lipton, R. (1996). A revocable backup system. In <i>Proceedings of the 6th USENIX Security Symposium</i> (pp. 91–96). USENIX Association. https://www.usenix.org/legacy/publications/library/proceedings/sec96/full_papers/boneh/boneh.pdf</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Botelho, F. C., Shilane, P., Garg, N., &amp; Hsu, W. (2013). Memory efficient sanitization of a deduplicated storage system. In <i>Proceedings of the 11th USENIX Conference on File and Storage Technologies (FAST ’13)</i> (pp. 81–94). USENIX Association.</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Chou, E., Conrad-Shah, L., Barker, A., Quinn, A., Miller, E. L., &amp; Long, D. D. E. (2023). Lethe: Secure deletion by addition. In <i>Proceedings of the 3rd Workshop on Challenges and Opportunities of Efficient and Performant Storage Systems (CHEOPS ’23)</i>. ACM. https://doi.org/10.1145/3578353.3589541</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Cidre, A. (2026). Don’t delete the row. Delete the key. https://adriacidre.com/blog/dont-delete-the-row-delete-the-key/</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Douceur, J. R., Adya, A., Bolosky, W. J., Simon, D., &amp; Theimer, M. (2002). Reclaiming space from duplicate files in a serverless distributed file system. In <i>Proceedings of the 22nd International Conference on Distributed Computing Systems</i> (pp. 617–624). IEEE.</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Encryption Consulting. (2024). Get familiar with the new concept of crypto-shredding. https://www.encryptionconsulting.com/introduction-to-crypto-shredding/</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">European Data Protection Board. (2026). <i>Coordinated enforcement action: Implementation of the right to erasure by controllers</i>. EDPB.</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Fu, Y., Su, J., Ning, J., Wu, J., Lu, Y., &amp; Xiao, N. (2025). Distributed data deduplication for big data: A survey. <i>ACM Computing Surveys, 58</i>(3). https://doi.org/10.1145/3735508</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Information Commissioner’s Office. (2023). <i>Right to erasure</i>. https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-erasure/</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">myeDPO. (2018, August 21). Right to erasure (RTBF) from backups. https://www.myedpo.com/post/2018/08/21/right-to-erasure-rtbf-from-backups</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Perlman, R. (2005a). <i>The ephemerizer: Making data disappear</i> (Technical Report No. TR-2005-140). Sun Microsystems.</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Perlman, R. (2005b). File system design with assured delete. In <i>Proceedings of the Third IEEE International Security in Storage Workshop</i> (SISW ’05). IEEE. https://doi.org/10.1109/SISW.2005.5</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Peterson, Z. N. J., Burns, R., Herring, J., Stubblefield, A., &amp; Rubin, A. D. (2005). Secure deletion for a versioning file system. In <i>Proceedings of the 4th USENIX Conference on File and Storage Technologies (FAST ’05)</i> (pp. 143–154). USENIX Association. https://www.usenix.org/legacy/event/fast05/tech/full_papers/peterson/peterson.pdf</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Rahumed, A., Chen, H. C. H., Tang, Y., Lee, P. P. C., &amp; Lui, J. C. S. (2011). A secure cloud backup system with assured deletion and version control. In <i>Proceedings of the International Conference on Parallel Processing Workshops</i> (pp. 160–167). IEEE.</p>
+<p style="margin: 0 0 0 0.5in; text-indent: -0.5in; line-height: 2;">Tang, Y., Lee, P. P. C., Lui, J. C. S., &amp; Perlman, R. (2010). FADE: Secure overlay cloud storage with file assured deletion. In S. Jajodia &amp; J. Zhou (Eds.), <i>Security and privacy in communication networks</i> (pp. 380–397). Springer. https://www.cse.cuhk.edu.hk/~pclee/www/pubs/securecomm10.pdf</p>
 
-[3] Bajaj, S. et al. (2023) ‘Lethe: secure deletion by addition’, *Proceedings of the 3rd Workshop on Challenges and Opportunities of Efficient and Performant Storage Systems (CHEOPS ’23)*. ACM.
-
-[4] Boneh, D., & Lipton, R. (1996). A revocable backup system. In *Proceedings of the 6th USENIX Security Symposium* (pp. 91–96). USENIX Association. https://www.usenix.org/legacy/publications/library/proceedings/sec96/full_papers/boneh/boneh.pdf
-
-[5] Botelho, F.C., Shilane, P., Garg, N. and Hsu, W. (2013) ‘Memory efficient sanitization of a deduplicated storage system’, *11th USENIX Conference on File and Storage Technologies (FAST ’13)*. USENIX, pp. 81–94.
-
-[6] Cidre, A. (2026) ‘Don’t delete the row. Delete the key’. Available at: https://adriacidre.com/blog/dont-delete-the-row-delete-the-key/ (Accessed: 19 September 2026).
-
-[7] Douceur, J.R., Adya, A., Bolosky, W.J., Simon, D. and Theimer, M. (2002) ‘Reclaiming space from duplicate files in a serverless distributed file system’, *Proceedings of the 22nd International Conference on Distributed Computing Systems (ICDCS)*. IEEE, pp. 617–624.
-
-[8] Encryption Consulting (2024) ‘Get familiar with the new concept of crypto-shredding’. Available at: https://www.encryptionconsulting.com/introduction-to-crypto-shredding/ (Accessed: 19 September 2026).
-
-[9] European Data Protection Board (2026) *Coordinated Enforcement Action: implementation of the right to erasure by controllers*. Brussels: EDPB.
-
-[10] Fu, Y., Su, J., Ning, J., Wu, J., Lu, Y. and Xiao, N. (2025) ‘Distributed data deduplication for big data: a survey’, *ACM Computing Surveys*, 58(3). doi: 10.1145/3735508.
-
-[11] Information Commissioner’s Office (2023) *Right to erasure*. Available at: https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-erasure/ (Accessed: 19 September 2026).
-
-[12] myeDPO (2018) ‘Right to erasure (RTBF) from backups’. Available at: https://www.myedpo.com/post/2018/08/21/right-to-erasure-rtbf-from-backups (Accessed: 19 September 2026).
-
-[13] Perlman, R. (2005a). *The ephemerizer: Making data disappear* (Technical Report No. TR-2005-140). Sun Microsystems.
-
-[14] Perlman, R. (2005b). File system design with assured delete. In *Proceedings of the Third IEEE International Security in Storage Workshop* (SISW ’05). IEEE. https://doi.org/10.1109/SISW.2005.5
-
-[15] Peterson, Z. N. J., Burns, R., Herring, J., Stubblefield, A., & Rubin, A. D. (2005). Secure deletion for a versioning file system. In *Proceedings of the 4th USENIX Conference on File and Storage Technologies (FAST ’05)* (pp. 143–154). USENIX Association. https://www.usenix.org/legacy/event/fast05/tech/full_papers/peterson/peterson.pdf
-
-[16] Rahumed, A., Chen, H.C.H., Tang, Y., Lee, P.P.C. and Lui, J.C.S. (2011) ‘A secure cloud backup system with assured deletion and version control’, *International Conference on Parallel Processing Workshops*. IEEE, pp. 160–167.
-
-[17] Tang, Y., Lee, P. P. C., Lui, J. C. S., & Perlman, R. (2010). FADE: Secure overlay cloud storage with file assured deletion. In S. Jajodia & J. Zhou (Eds.), *Security and privacy in communication networks* (pp. 380–397). Springer. https://www.cse.cuhk.edu.hk/~pclee/www/pubs/securecomm10.pdf

@@ -42,33 +42,23 @@ What operators do today is wait for the checkpoint to age out, lock restore so A
 
 ### 1.2 Problem Statement
 
-Existing backup designs say how to delete a file or an old recovery point, not how to forget a person. Three rules meet in the same vault. Sharing stores identical data once, so two people who back up the same installer have one copy on disk: dropping one person’s index leaves the bytes, and destroying the encryption key on that copy blinds the other person. Immutability forbids rewriting a frozen checkpoint to cut someone out. Erasure still requires that person’s data to be unrecoverable from every leftover copy, including backups that also hold someone else’s files.
-
-The hard part depends on the data. Unique files (a private diary) belong to one person and can be forgotten by destroying that person’s keys. Identical public files (a shared installer) may stay on disk if others can still restore and the forgotten person cannot restore their own copy. Mixed files — one mailbox, one group photograph, one spreadsheet with two employees — cannot stay as one shared encrypted blob if one person must disappear and the other must still open something useful. A legal hold delays that destruction and must be visible, because restore may still return the forgotten person while the hold is live.
-
-This project therefore asks for a store and a key policy such that forgetting a person makes their personal data unrecoverable from every frozen snapshot, including ones that share bytes with others, while everyone else who is entitled can still restore, holds can delay destruction without hiding that fact, and extra space can be measured against never sharing across people. The leftover is not a new hash. It is forgetting a person when storage is shared, snapshots cannot be rewritten, content may mix people, and a hold may block the delete.
+Existing backup designs delete a file or a checkpoint, not a person. Sharing stores identical bytes once: dropping one index leaves the data, and destroying the one key blinds the other person. Immutability forbids rewriting a frozen checkpoint. Unique files can be forgotten with one person’s keys; identical public files may stay if others can still restore; mixed files cannot remain one shared blob. This project asks for a store and a key policy that makes a person unrecoverable from every frozen snapshot without blinding everyone else, including when a hold delays the delete.
 
 ### 1.3 Project Objectives & Scope
 
-This project aims to design and implement a laptop-scale backup store that treats forgetting a person, `erase(S)`, as a first-class operation under deduplication and immutability, and to evaluate that design on labelled files, mixed containers, holds, and a multi-tenant ingest mix. Rather than relying on “beyond use until rotation” or tenant-wide key destruction, the store will classify regions as unique, identical, or mixed, wrap data-encryption keys per entitled subject, parse shared mailboxes and photo libraries into inner objects, and pin keys when a hold is live.
+The aim is a laptop-scale backup store that can forget one person under deduplication and immutability, and measure that design on labelled files, mixed containers, and holds.
 
-The primary objectives are as follows.
+1. Specify the problem and terms so erase of a person is not confused with deleting a file or a version.
+2. Implement ingest, restore, erase, and hold in one pipeline (mutable key store, append-only chunk log).
+3. Parse a mailbox and a two-subject photo library so erase runs on inner objects, not only whole files.
+4. Measure leftover bytes, restore, and the hold window on a synthetic corpus.
+5. Treat mixed leaks, never-share extra space, and hold delay as expected outcomes, not surprises.
 
-1. Specify the problem and a glossary (subject, chunk, recipe, snapshot, owner set, unique / identical / mixed, cryptographic erasure, OR-wrap versus AND-wrap, copy-out, hold, deferred erase) so the claim is not confused with version delete or physical overwrite.
-2. Implement ingest, restore, `erase(S)`, hold / release, owner sets, and the wrap modes in one pipeline, with a mutable key store and an append-only chunk log.
-3. Parse one mailbox format (mbox, or Outlook PST if feasible) and one two-subject photo library so erase runs on messages, attachments, and photos rather than on the whole file.
-4. Measure unique bytes, restore success or failure, and the recoverability window while a hold is live, first on a synthetic two-subject corpus and then on a multi-tenant ingest trace or a named public substitute.
-5. Write the comparison so a leak under mixed OR-wrap, a space cost under never-share, and a delay under hold are expected outcomes, not surprises.
-
-In scope. Subject-scoped erase in a chunk-addressed backup; unique, identical, and mixed classes, including mixed containers; OR-wrap, AND-wrap, no cross-user share, and copy-out as baselines; holds and deferred shred; a synthetic corpus and a tenant-labelled trace; a leftover-store threat model (remaining keys plus the chunk log). Deleting a version while keeping later versions, as in FadeVersion, is a solved baseline, not the claim.
-
-Out of scope. A new content-defined chunking algorithm; legal advice or a production person-identifying classifier (labels and header heuristics are inputs); hardware security modules, SGX, or blockchain as the contribution; encrypted-deduplication brute-force resistance; physical drive overwrite as the only delete mechanism; perceptual near-duplicate matching.
-
-This interim report covers the motivation, the problem, and the first part of the literature review. System design, implementation, and experiments are left for later submissions.
+In scope: subject-scoped erase; unique / identical / mixed; wrap baselines; holds; a leftover-store attacker. Out of scope: a new chunking algorithm, legal classification, and physical overwrite as the only delete. Design, implementation, and experiments are left for later reports.
 
 ### 1.4 Report Organization
 
-The remainder of this report is organised as follows. Section 2 reviews cryptographic erasure of backups and states how those systems stop short of subject-scoped erase. Section 3 will present the system design. Section 4 will describe methodology and implementation. Section 5 will report experiments. Section 6 lists the references used in this version. Sections 3–5 are reserved and are not filled in this revision.
+Section 2 reviews cryptographic erasure of backups. Sections 3–5 (design, method, experiments) are reserved. Section 6 lists references.
 
 ---
 

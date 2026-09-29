@@ -108,7 +108,7 @@ These systems set up cryptographic deletion as the only feasible means of deleti
 
 [3] Bajaj, S. et al. (2023) ‘Lethe: secure deletion by addition’, *Proceedings of the 3rd Workshop on Challenges and Opportunities of Efficient and Performant Storage Systems (CHEOPS ’23)*. ACM.
 
-[4] Boneh, D. and Lipton, R. (1996) ‘A revocable backup system’, *6th USENIX Security Symposium*. USENIX, pp. 91–96.
+[4] Boneh, D., & Lipton, R. (1996). A revocable backup system. In *Proceedings of the 6th USENIX Security Symposium* (pp. 91–96). USENIX Association. https://www.usenix.org/legacy/publications/library/proceedings/sec96/full_papers/boneh/boneh.pdf
 
 [5] Botelho, F.C., Shilane, P., Garg, N. and Hsu, W. (2013) ‘Memory efficient sanitization of a deduplicated storage system’, *11th USENIX Conference on File and Storage Technologies (FAST ’13)*. USENIX, pp. 81–94.
 
@@ -126,12 +126,12 @@ These systems set up cryptographic deletion as the only feasible means of deleti
 
 [12] myeDPO (2018) ‘Right to erasure (RTBF) from backups’. Available at: https://www.myedpo.com/post/2018/08/21/right-to-erasure-rtbf-from-backups (Accessed: 19 September 2026).
 
-[13] Perlman, R. (2005a) *The Ephemerizer: making data disappear*. Sun Microsystems Technical Report TR-2005-140.
+[13] Perlman, R. (2005a). *The ephemerizer: Making data disappear* (Technical Report No. TR-2005-140). Sun Microsystems.
 
-[14] Perlman, R. (2005b) ‘File system design with assured delete’, *Third IEEE International Security in Storage Workshop (SISW)*. IEEE.
+[14] Perlman, R. (2005b). File system design with assured delete. In *Proceedings of the Third IEEE International Security in Storage Workshop* (SISW ’05). IEEE. https://doi.org/10.1109/SISW.2005.5
 
-[15] Peterson, Z.N.J., Burns, R., Herring, J., Stubblefield, A. and Rubin, A.D. (2005) ‘Secure deletion for a versioning file system’, *4th USENIX Conference on File and Storage Technologies (FAST ’05)*. USENIX.
+[15] Peterson, Z. N. J., Burns, R., Herring, J., Stubblefield, A., & Rubin, A. D. (2005). Secure deletion for a versioning file system. In *Proceedings of the 4th USENIX Conference on File and Storage Technologies (FAST ’05)* (pp. 143–154). USENIX Association. https://www.usenix.org/legacy/event/fast05/tech/full_papers/peterson/peterson.pdf
 
 [16] Rahumed, A., Chen, H.C.H., Tang, Y., Lee, P.P.C. and Lui, J.C.S. (2011) ‘A secure cloud backup system with assured deletion and version control’, *International Conference on Parallel Processing Workshops*. IEEE, pp. 160–167.
 
-[17] Tang, Y., Lee, P.P.C., Lui, J.C.S. and Perlman, R. (2010) ‘FADE: secure overlay cloud storage with file assured deletion’, *SecureComm 2010*. Springer, pp. 380–397.
+[17] Tang, Y., Lee, P. P. C., Lui, J. C. S., & Perlman, R. (2010). FADE: Secure overlay cloud storage with file assured deletion. In S. Jajodia & J. Zhou (Eds.), *Security and privacy in communication networks* (pp. 380–397). Springer. https://www.cse.cuhk.edu.hk/~pclee/www/pubs/securecomm10.pdf

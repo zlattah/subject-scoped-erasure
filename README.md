@@ -4,6 +4,7 @@ A backup store that shares identical bytes cannot, without extra design, both **
 
 - Working project plan: [projectplan.md](projectplan.md)
 - CS course project plan: [cs-project-plan.md](cs-project-plan.md)
+- CS FYP interim report: [cs-interim-report.md](cs-interim-report.md)
 - English-class interim report: [english-class-interim-report.md](english-class-interim-report.md)
 - Definitions and design: [docs/method.md](docs/method.md)
 - Related work: [docs/related-work.md](docs/related-work.md)

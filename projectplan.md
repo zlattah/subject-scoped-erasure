@@ -43,7 +43,7 @@ WP6 can start as soon as WP2 exists (holds on unique/identical). WP5 can use mbo
 
 | Artefact | Path / form |
 |---|---|
-| Store + CLI | `cascade_dedup` (or a dedicated package if the old tree is retired) |
+| Store + CLI | `cascade_dedup` |
 | Tests | unique / identical / mixed / hold / leftover-store attacker |
 | Fixtures | two-subject files; mbox; photo folder; optional PST |
 | Trace replay | script + table of mix and costs |

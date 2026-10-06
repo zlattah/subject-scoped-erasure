@@ -7,6 +7,7 @@ at ingest (trusted backup client), not by the untrusted disk.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -15,7 +16,10 @@ from typing import Callable, Iterable
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from cascade_dedup.chunking import fingerprint as blake_fp
+
+def _fingerprint(data: bytes) -> bytes:
+    return hashlib.blake2s(data, digest_size=16).digest()
+
 
 CHUNK_SIZE = 4096
 Redactor = Callable[[bytes, str], bytes]
@@ -192,7 +196,7 @@ class EraseStore:
     ) -> list[str]:
         ids: list[str] = []
         for piece in _split(data):
-            fp = blake_fp(piece)
+            fp = _fingerprint(piece)
             reuse: str | None = None
             if share:
                 for cid in self.fp_index.get(fp, []):
@@ -240,7 +244,7 @@ class EraseStore:
         share = False
         if file_class is FileClass.UNIQUE:
             for piece in _split(data):
-                fp = blake_fp(piece)
+                fp = _fingerprint(piece)
                 for cid in self.fp_index.get(fp, []):
                     rec = self.chunks[cid]
                     if rec.owners - {subject}:
